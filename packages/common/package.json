@@ -1,5 +1,5 @@
 {
-  "name": "@scottystack/common",
+  "name": "@wiki/common",
   "version": "0.0.0",
   "main": "src/index.ts",
   "type": "module"

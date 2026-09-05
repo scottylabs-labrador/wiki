@@ -1,10 +1,10 @@
 {
-  "name": "@scottystack/server",
+  "name": "@wiki/server",
   "version": "0.0.0",
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.5.4",
-    "@scottystack/access-control": "workspace:*",
-    "@scottystack/db": "workspace:*",
+    "@wiki/access-control": "workspace:*",
+    "@wiki/db": "workspace:*",
     "@sentry/bun": "^10.42.0",
     "@tsoa/runtime": "^7.0.0-alpha.0",
     "better-auth": "^1.6.26",

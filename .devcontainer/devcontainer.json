@@ -1,5 +1,5 @@
 {
-  "name": "ScottyStack",
+  "name": "Wiki",
   "dockerComposeFile": "./docker-compose.yml",
   "service": "dev",
   "workspaceFolder": "/workspace",

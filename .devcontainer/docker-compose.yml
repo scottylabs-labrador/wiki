@@ -1,8 +1,8 @@
-name: "scottystack"
+name: "wiki"
 
 services:
   dev:
-    container_name: scottystack-dev
+    container_name: wiki-dev
     build:
       context: ..
       dockerfile: .devcontainer/Dockerfile
@@ -17,11 +17,11 @@ services:
 
   postgres:
     image: postgres:17
-    container_name: scottystack-postgres
+    container_name: wiki-postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: donotuseinprod
-      POSTGRES_DB: scottystack
+      POSTGRES_DB: wiki
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:

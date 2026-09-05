@@ -1,4 +1,4 @@
-import { createDb } from "@scottystack/db";
+import { createDb } from "@wiki/db";
 
 import { env } from "../env.ts";
 

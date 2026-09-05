@@ -1,5 +1,5 @@
 {
-  "name": "@scottystack/access-control",
+  "name": "@wiki/access-control",
   "version": "0.0.0",
   "dependencies": {
     "@casl/ability": "^7.0.1",

@@ -1,5 +1,5 @@
 {
-  "name": "scottystack",
+  "name": "wiki",
   "version": "0.0.0",
   "commitlint": {
     "extends": [
@@ -12,7 +12,7 @@
     "@electric-sql/pglite": "^0.5.5",
     "@electric-sql/pglite-socket": "^0.2.8",
     "@playwright/test": "^1.62.1",
-    "@scottystack/db": "workspace:*",
+    "@wiki/db": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "husky": "^9.1.7",
     "markdownlint-cli2": "^0.22.1",

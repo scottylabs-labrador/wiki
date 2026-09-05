@@ -1,5 +1,5 @@
-import type { Role, User } from "@scottystack/access-control";
-import { account, user } from "@scottystack/db/schema";
+import type { Role, User } from "@wiki/access-control";
+import { account, user } from "@wiki/db/schema";
 import { eq } from "drizzle-orm";
 import type { Request as ExpressRequest } from "express";
 import type jwt from "jsonwebtoken";

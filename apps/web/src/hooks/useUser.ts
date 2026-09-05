@@ -1,4 +1,4 @@
-import type { User } from "@scottystack/access-control";
+import type { User } from "@wiki/access-control";
 
 import { useSession } from "@/lib/authClient";
 

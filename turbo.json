@@ -6,9 +6,9 @@
       "cache": false,
       "persistent": true
     },
-    "@scottystack/server#build:api": {},
+    "@wiki/server#build:api": {},
     "build": {
-      "dependsOn": ["^build", "@scottystack/server#build:api"],
+      "dependsOn": ["^build", "@wiki/server#build:api"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
       "outputs": ["dist/**"]
     },

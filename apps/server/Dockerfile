@@ -12,7 +12,7 @@ RUN bun ci
 
 # Build the server
 COPY . .
-RUN bun run build --filter=@scottystack/server...
+RUN bun run build --filter=@wiki/server...
 
 # Final runtime image
 FROM base AS runner

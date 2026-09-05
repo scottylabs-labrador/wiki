@@ -5,8 +5,8 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@scottystack/db": ["../../packages/db/src/index.ts"],
-      "@scottystack/db/*": ["../../packages/db/src/*"]
+      "@wiki/db": ["../../packages/db/src/index.ts"],
+      "@wiki/db/*": ["../../packages/db/src/*"]
     }
   },
   "spec": {

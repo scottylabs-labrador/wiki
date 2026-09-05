@@ -11,7 +11,7 @@ test("a guest can see the app shell", async ({ page }) => {
   await page.goto("/");
 
   await expect(page.getByRole("button", { name: "Sign In" })).toBeVisible();
-  await expect(page.getByText("ScottyStack")).toBeVisible();
+  await expect(page.getByText("Wiki")).toBeVisible();
   await expect(page.getByText("Home")).toBeVisible();
 });
 

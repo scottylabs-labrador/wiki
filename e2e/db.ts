@@ -1,4 +1,4 @@
-import { account, session, user } from "@scottystack/db/schema";
+import { account, session, user } from "@wiki/db/schema";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 

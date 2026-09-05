@@ -1,4 +1,4 @@
-import type { paths } from "@scottystack/server/build/swagger";
+import type { paths } from "@wiki/server/build/swagger";
 import createFetchClient from "openapi-fetch";
 import createClient from "openapi-react-query";
 

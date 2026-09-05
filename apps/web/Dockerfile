@@ -17,7 +17,7 @@ ARG VITE_PUBLIC_POSTHOG_KEY
 
 # Build the web app
 COPY . .
-RUN bun run build --filter=@scottystack/web...
+RUN bun run build --filter=@wiki/web...
 
 ################################################################################
 # Aplication Stage

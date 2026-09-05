@@ -1,5 +1,5 @@
-import type { Role } from "@scottystack/access-control";
-import * as schema from "@scottystack/db/schema";
+import type { Role } from "@wiki/access-control";
+import * as schema from "@wiki/db/schema";
 import type { Session, User } from "better-auth";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";

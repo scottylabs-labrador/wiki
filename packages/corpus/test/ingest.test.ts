@@ -3,7 +3,7 @@ import { EMBEDDING_DIMENSIONS } from "@wiki/db/schema";
 import { asc, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { ingest } from "../src/ingestService.ts";
+import { ingest, ingestAll } from "../src/ingestService.ts";
 import { testDb } from "./harness.ts";
 
 const SOURCE_ID = "test-wiki";
@@ -168,6 +168,32 @@ describe("ingest", () => {
     };
 
     await expect(ingest({ db: testDb, source: moved, embedder: wrongWidth })).rejects.toThrow();
+    expect(await allRows()).toEqual(afterFirst);
+  });
+
+  it("commits each Source independently so one failure cannot corrupt another", async () => {
+    const surviving = fakeSource({
+      sha: "abc123",
+      pages: { "Auth.md": "## Auth\n\nKeycloak." },
+    });
+    await ingest({ db: testDb, source: surviving, embedder: fakeEmbedder() });
+    const afterFirst = await allRows();
+
+    const broken = {
+      id: "other-wiki",
+      headSha: () => Promise.resolve("def456"),
+      fetchPages: () => Promise.reject(new Error("clone failed")),
+      pageUrl: (filename: string) => `https://other.example.com/${filename}`,
+    };
+
+    const { outcomes, failures } = await ingestAll({
+      db: testDb,
+      sources: [surviving, broken],
+      embedder: fakeEmbedder(),
+    });
+
+    expect(outcomes).toEqual([expect.objectContaining({ sourceId: SOURCE_ID, unchanged: true })]);
+    expect(failures).toEqual([expect.objectContaining({ sourceId: "other-wiki" })]);
     expect(await allRows()).toEqual(afterFirst);
   });
 });

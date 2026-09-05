@@ -24,7 +24,7 @@ await migrate(testDb, { migrationsFolder });
 
 export async function resetDb() {
   await testDb.execute(
-    sql`TRUNCATE TABLE "session", "account", "verification", "user", "source_ingest", "page", "chunk" CASCADE`,
+    sql`TRUNCATE TABLE "session", "account", "verification", "user", "source_ingest", "page", "chunk", "question_rate" CASCADE`,
   );
 }
 

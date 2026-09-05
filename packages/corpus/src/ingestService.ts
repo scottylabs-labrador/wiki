@@ -150,3 +150,29 @@ export async function ingest({
     chunks: bodies.length,
   };
 }
+
+/**
+ * Ingests each Source on its own, so a failure in one cannot roll back another.
+ */
+export async function ingestAll({
+  db,
+  sources,
+  embedder,
+}: {
+  db: CorpusDatabase;
+  sources: Source[];
+  embedder: Embedder;
+}): Promise<{ outcomes: IngestOutcome[]; failures: Array<{ sourceId: string; error: unknown }> }> {
+  const outcomes: IngestOutcome[] = [];
+  const failures: Array<{ sourceId: string; error: unknown }> = [];
+
+  for (const source of sources) {
+    try {
+      outcomes.push(await ingest({ db, source, embedder }));
+    } catch (error) {
+      failures.push({ sourceId: source.id, error });
+    }
+  }
+
+  return { outcomes, failures };
+}

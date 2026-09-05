@@ -101,4 +101,15 @@ describe("splitIntoChunks", () => {
       "dev-container-setup-guide-1",
     ]);
   });
+
+  it("uses an explicit {#anchor} so an HTML Page can keep the ids it publishes", () => {
+    const chunks = splitIntoChunks(
+      ["## Role Permissions {#permissions}", "", "What each role can access."].join("\n"),
+    );
+
+    expect(chunks[0]).toMatchObject({
+      heading: "Role Permissions",
+      anchor: "permissions",
+    });
+  });
 });

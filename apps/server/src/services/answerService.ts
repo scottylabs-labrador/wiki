@@ -1,4 +1,4 @@
-import { retrieve, type RetrievedChunk } from "@wiki/corpus";
+import { citationsFrom, retrieve, type Citation, type RetrievedChunk } from "@wiki/corpus";
 
 import { env } from "../env.ts";
 import { db } from "../lib/db.ts";
@@ -8,6 +8,12 @@ import { embedder } from "../lib/embedder.ts";
 export interface Turn {
   role: "user" | "assistant";
   content: string;
+}
+
+export interface AnswerStream {
+  grounded: boolean;
+  citations: Citation[];
+  deltas: AsyncIterable<string>;
 }
 
 const CHAT_MODEL_URL = "https://openrouter.ai/api/v1/chat/completions";
@@ -32,9 +38,21 @@ const GROUNDED = [
   "as names, dates, or links.",
 ].join(" ");
 
+const REWRITE = [
+  "Rewrite the member's latest question as a standalone documentation search",
+  "query that makes sense without the earlier conversation. Return only the",
+  "query, with no quotes or explanation. If it is already standalone, return it",
+  "unchanged.",
+].join(" ");
+
 /** One frame of a streamed Answer, as OpenRouter writes it on the wire. */
 interface DeltaFrame {
   choices?: Array<{ delta?: { content?: string | null } }>;
+  error?: { message?: string };
+}
+
+interface CompletionFrame {
+  choices?: Array<{ message?: { content?: string | null } }>;
   error?: { message?: string };
 }
 
@@ -45,14 +63,17 @@ interface DeltaFrame {
  * request, so a caller can still report a plain HTTP failure before it commits
  * to streaming. Iterating the result then yields the Answer as text arrives.
  *
+ * Citations are computed from the Chunks retrieval returned, never written by
+ * the model. See ADR-0002.
+ *
  * Every turn given is sent, so the caller decides how much conversation the
- * prompt — and the bill — carries.
+ * prompt — and the bill — carries. A follow-up is rewritten into a standalone
+ * query before retrieval; that rewrite never changes the turns shown to the
+ * member or sent as the Answer's conversation.
  */
-export async function openAnswerStream(
-  turns: Turn[],
-  signal: AbortSignal,
-): Promise<AsyncIterable<string>> {
-  const chunks = await similarChunks(turns);
+export async function openAnswerStream(turns: Turn[], signal: AbortSignal): Promise<AnswerStream> {
+  const chunks = await similarChunks(turns, signal);
+  const citations = citationsFrom(chunks);
   const response = await fetch(CHAT_MODEL_URL, {
     method: "POST",
     signal,
@@ -76,16 +97,46 @@ export async function openAnswerStream(
     throw new Error(`OpenRouter returned ${response.status}: ${await response.text()}`);
   }
 
-  return readDeltas(response.body);
+  return {
+    grounded: chunks.length > 0,
+    citations,
+    deltas: readDeltas(response.body),
+  };
 }
 
-/** Retrieves the Chunks most similar to the latest question, or none. */
-async function similarChunks(turns: Turn[]): Promise<RetrievedChunk[]> {
-  const question = lastQuestion(turns);
+/** Retrieves the Chunks most similar to what the member meant, or none. */
+async function similarChunks(turns: Turn[], signal: AbortSignal): Promise<RetrievedChunk[]> {
+  const question = await retrievalQuery(turns, signal);
   if (!question) {
     return [];
   }
-  return await retrieve({ db, embedder, question });
+  return await retrieve({
+    db,
+    embedder,
+    question,
+    minSimilarity: env.RETRIEVAL_MIN_SIMILARITY,
+  });
+}
+
+/**
+ * The query retrieval should run, which for a follow-up is a standalone rewrite
+ * of the latest question. The first question of a conversation is already
+ * standalone, so it pays no extra round trip.
+ */
+async function retrievalQuery(turns: Turn[], signal: AbortSignal): Promise<string | undefined> {
+  const question = lastQuestion(turns);
+  if (!question) {
+    return undefined;
+  }
+  if (userTurnCount(turns) <= 1) {
+    return question;
+  }
+
+  try {
+    return (await rewriteAsStandalone(turns, signal)) || question;
+  } catch {
+    return question;
+  }
 }
 
 function lastQuestion(turns: Turn[]): string | undefined {
@@ -96,6 +147,37 @@ function lastQuestion(turns: Turn[]): string | undefined {
     }
   }
   return undefined;
+}
+
+function userTurnCount(turns: Turn[]): number {
+  return turns.filter((turn) => turn.role === "user").length;
+}
+
+async function rewriteAsStandalone(turns: Turn[], signal: AbortSignal): Promise<string> {
+  const response = await fetch(CHAT_MODEL_URL, {
+    method: "POST",
+    signal,
+    headers: {
+      Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: env.OPENROUTER_MODEL,
+      messages: [{ role: "system", content: REWRITE }, ...turns],
+      stream: false,
+      reasoning: { enabled: false },
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`OpenRouter returned ${response.status}: ${await response.text()}`);
+  }
+
+  const body = (await response.json()) as CompletionFrame;
+  if (body.error) {
+    throw new Error(`OpenRouter failed to rewrite: ${body.error.message ?? "unknown reason"}`);
+  }
+  return body.choices?.[0]?.message?.content?.trim() ?? "";
 }
 
 function systemPrompt(chunks: RetrievedChunk[]): string {

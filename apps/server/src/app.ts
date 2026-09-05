@@ -13,7 +13,7 @@ import { env } from "./env.ts";
 import { auth } from "./lib/auth.ts";
 import { errorHandler } from "./middlewares/errorHandler.ts";
 import { notFoundHandler } from "./middlewares/notFoundHandler.ts";
-import { ANSWER_STREAM_PATH, streamAnswer } from "./routes/chatRoute.ts";
+import { ANSWER_STREAM_PATH, QUOTA_PATH, readQuota, streamAnswer } from "./routes/chatRoute.ts";
 
 const app = express();
 
@@ -48,6 +48,7 @@ app.get("/openapi.json", (_req, res) => {
 // events in an OpenAPI spec, so the Answer stream is mounted by hand. It needs
 // both the Better Auth handler and `express.json` above it.
 app.post(ANSWER_STREAM_PATH, streamAnswer);
+app.get(QUOTA_PATH, readQuota);
 
 RegisterRoutes(app);
 app.get("/", (_req, res) => {

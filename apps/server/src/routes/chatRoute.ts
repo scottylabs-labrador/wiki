@@ -9,11 +9,16 @@ import {
   BadRequestError,
   captureUnexpectedError,
   PayloadTooLargeError,
+  TooManyRequestsError,
 } from "../middlewares/errorHandler.ts";
 import { openAnswerStream, type Turn } from "../services/answerService.ts";
+import { consumeQuestion, peekQuota } from "../services/rateLimit.ts";
 
 /** Where the browser posts a conversation to have the next Answer streamed back. */
 export const ANSWER_STREAM_PATH = "/chat/answers";
+
+/** Where the browser asks how many questions this hour still allows. */
+export const QUOTA_PATH = "/chat/quota";
 
 /**
  * How many trailing turns of a conversation are sent to the chat model.
@@ -84,13 +89,18 @@ export async function streamAnswer(req: Request, res: Response) {
     );
   }
 
+  const quota = await consumeQuestion(userId);
+  if (!quota.allowed) {
+    throw new TooManyRequestsError(quota.resetAt);
+  }
+
   // Abandoning the tab must stop the upstream call, which is still being billed.
   const upstream = new AbortController();
   res.on("close", () => upstream.abort());
 
-  let deltas: AsyncIterable<string>;
+  let answer: Awaited<ReturnType<typeof openAnswerStream>>;
   try {
-    deltas = await openAnswerStream(turns, upstream.signal);
+    answer = await openAnswerStream(turns, upstream.signal);
   } catch (error) {
     captureUnexpectedError(`Could not open an Answer stream for ${userId}: ${String(error)}`);
     throw new BadGatewayError("The chat model is unavailable.");
@@ -98,10 +108,12 @@ export async function streamAnswer(req: Request, res: Response) {
 
   res.writeHead(200, SSE_HEADERS);
   try {
-    for await (const text of deltas) {
+    // Citations go out before any delta so the interface can show which Pages
+    // are being consulted while the Answer is still being written.
+    writeEvent(res, "citations", { citations: answer.citations, grounded: answer.grounded });
+    for await (const text of answer.deltas) {
       writeEvent(res, "delta", { text });
     }
-    // Ticket #4 adds a `citations` event here, once an Answer has Citations.
     writeEvent(res, "done", {});
   } catch (error) {
     captureUnexpectedError(`Answer stream for ${userId} broke off: ${String(error)}`);
@@ -110,6 +122,17 @@ export async function streamAnswer(req: Request, res: Response) {
     writeEvent(res, "error", { message: "The Answer stopped part way through." });
   }
   res.end();
+}
+
+/** How many questions this member may still ask in the current hour. */
+export async function readQuota(req: Request, res: Response) {
+  const userId = await signedInUserId(req);
+  if (!userId) {
+    throw new AuthenticationError();
+  }
+
+  const quota = await peekQuota(userId);
+  res.status(200).json({ remaining: quota.remaining, resetAt: quota.resetAt.toISOString() });
 }
 
 /**

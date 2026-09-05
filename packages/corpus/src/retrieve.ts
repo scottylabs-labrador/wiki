@@ -13,6 +13,9 @@ export interface RetrievedChunk {
   heading: string | null;
   anchor: string | null;
   url: string;
+  filename: string;
+  /** Cosine similarity to the question, 1 when identical and 0 when orthogonal. */
+  similarity: number;
 }
 
 /**
@@ -24,10 +27,13 @@ export async function retrieve({
   db,
   embedder,
   question,
+  minSimilarity = 0,
 }: {
   db: CorpusDatabase;
   embedder: Embedder;
   question: string;
+  /** Drop neighbours below this cosine similarity. Vector search cannot report "nothing found" on its own. */
+  minSimilarity?: number;
 }): Promise<RetrievedChunk[]> {
   const [present] = await db.select({ id: chunkTable.id }).from(chunkTable).limit(1);
   if (!present) {
@@ -39,15 +45,29 @@ export async function retrieve({
     throw new Error(`${embedder.model} returned no vector for the question`);
   }
 
-  return await db
+  const distance = cosineDistance(chunkTable.embedding, queryEmbedding);
+  const neighbours = await db
     .select({
       body: chunkTable.body,
       heading: chunkTable.heading,
       anchor: chunkTable.anchor,
       url: pageTable.publicUrl,
+      filename: pageTable.filename,
+      distance,
     })
     .from(chunkTable)
     .innerJoin(pageTable, eq(chunkTable.pageId, pageTable.id))
-    .orderBy(cosineDistance(chunkTable.embedding, queryEmbedding))
+    .orderBy(distance)
     .limit(MAX_CHUNKS);
+
+  return neighbours
+    .map((neighbour) => ({
+      body: neighbour.body,
+      heading: neighbour.heading,
+      anchor: neighbour.anchor,
+      url: neighbour.url,
+      filename: neighbour.filename,
+      similarity: 1 - Number(neighbour.distance),
+    }))
+    .filter((retrieved) => retrieved.similarity >= minSimilarity);
 }

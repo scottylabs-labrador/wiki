@@ -22,11 +22,12 @@ vi.mock("../src/lib/db.ts", async () => {
 
 vi.mock("../src/lib/embedder.ts", async () => {
   const { EMBEDDING_DIMENSIONS } = await import("@wiki/db/schema");
+  const { embedByText } = await import("./embedderState.ts");
+  const ones = Array.from({ length: EMBEDDING_DIMENSIONS }, () => 1);
   return {
     embedder: {
       model: process.env["OPENROUTER_EMBEDDING_MODEL"] ?? "openai/text-embedding-3-small",
-      embed: (texts: string[]) =>
-        Promise.resolve(texts.map(() => Array.from({ length: EMBEDDING_DIMENSIONS }, () => 1))),
+      embed: (texts: string[]) => Promise.resolve(texts.map((text) => embedByText[text] ?? ones)),
     },
   };
 });
@@ -47,5 +48,7 @@ vi.mock("jwks-rsa", async () => {
 
 beforeEach(async () => {
   const { resetDb } = await import("./harness.ts");
+  const { resetEmbedByText } = await import("./embedderState.ts");
   await resetDb();
+  resetEmbedByText();
 });

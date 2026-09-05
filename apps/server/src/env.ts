@@ -14,6 +14,8 @@ const envSchema = z.object({
   OPENROUTER_API_KEY: z.string(),
   OPENROUTER_MODEL: z.string(),
   OPENROUTER_EMBEDDING_MODEL: z.string().default("openai/text-embedding-3-small"),
+  /** Cosine similarity below which retrieved Chunks are treated as irrelevant. See ADR-0002. */
+  RETRIEVAL_MIN_SIMILARITY: z.coerce.number().min(0).max(1).default(0.3),
   SENTRY_DSN: z.string().optional(),
   SERVER_URL: z.url(),
   SERVER_PORT: z.coerce.number().default(80),

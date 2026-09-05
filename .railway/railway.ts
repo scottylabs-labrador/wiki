@@ -60,33 +60,51 @@ export default defineRailway(() => {
       AUTH_JWKS_URI: "https://idp.scottylabs.org/realms/labrador/protocol/openid-connect/certs",
       BETTER_AUTH_URL: "https://stack.scottylabs.org",
       DATABASE_URL: "${{Postgres.DATABASE_URL}}",
+      // Credit ceiling lives on this key in OpenRouter, as a backstop independent
+      // of the per-member question limit.
       OPENROUTER_API_KEY: preserve(),
       OPENROUTER_MODEL: preserve(),
       OPENROUTER_EMBEDDING_MODEL: "openai/text-embedding-3-small",
+      // Trust-critical: neighbours below this cosine similarity are treated as
+      // irrelevant, so a question the wiki has never covered is not decorated
+      // with Citations. Adjustable without a code deploy. See ADR-0002.
+      RETRIEVAL_MIN_SIMILARITY: "0.3",
       SENTRY_DSN: preserve(),
       SERVER_URL: "https://api.stack.scottylabs.org",
     },
   });
 
+  const ingestEnv = {
+    DATABASE_URL: "${{Postgres.DATABASE_URL}}",
+    OPENROUTER_API_KEY: preserve(),
+    OPENROUTER_EMBEDDING_MODEL: "openai/text-embedding-3-small",
+  };
+  const ingestBuild = {
+    builder: "DOCKERFILE" as const,
+    dockerfilePath: "/apps/ingest/Dockerfile",
+    watchPatterns: ["/apps/ingest/**", "/packages/corpus/**", "/packages/db/**"],
+  };
+
   // A one-shot job rather than a server: it populates the Corpus and exits, so
-  // it must never be restarted on completion. The nightly schedule is added in
-  // the ticket that refreshes every Source.
+  // it must never be restarted on completion. A fresh deploy runs this service
+  // once so the Corpus is populated without waiting on the nightly schedule.
   const _wikiingest = service("@wiki/ingest", {
     source: Wiki,
-    build: {
-      builder: "DOCKERFILE",
-      dockerfilePath: "/apps/ingest/Dockerfile",
-      watchPatterns: ["/apps/ingest/**", "/packages/corpus/**", "/packages/db/**"],
-    },
+    build: ingestBuild,
     deploy: { restartPolicyType: "NEVER" },
-    env: {
-      DATABASE_URL: "${{Postgres.DATABASE_URL}}",
-      OPENROUTER_API_KEY: preserve(),
-      OPENROUTER_EMBEDDING_MODEL: "openai/text-embedding-3-small",
-    },
+    env: ingestEnv,
+  });
+
+  // Nightly refresh. Cron jobs do not run on deploy, which is why the service
+  // above exists separately rather than relying on scheduler behaviour.
+  const _wikiingestNightly = service("@wiki/ingest-nightly", {
+    source: Wiki,
+    build: ingestBuild,
+    deploy: { restartPolicyType: "NEVER", cronSchedule: "0 7 * * *" },
+    env: ingestEnv,
   });
 
   return project("Wiki", {
-    resources: [Postgres, _wikiweb, _wikiserver, _wikiingest, postgresVolume],
+    resources: [Postgres, _wikiweb, _wikiserver, _wikiingest, _wikiingestNightly, postgresVolume],
   });
 });

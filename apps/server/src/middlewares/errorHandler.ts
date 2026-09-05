@@ -41,6 +41,15 @@ export class PayloadTooLargeError extends HttpError {
   }
 }
 
+export class TooManyRequestsError extends HttpError {
+  resetAt: Date;
+  constructor(resetAt: Date) {
+    super(429, "You have asked as many questions as this hour allows.");
+    this.name = "TooManyRequests";
+    this.resetAt = resetAt;
+  }
+}
+
 export class InternalServerError extends HttpError {
   constructor(message: string) {
     super(500, message);
@@ -83,6 +92,14 @@ export function errorHandler(err: unknown, req: Request, res: Response, next: Ne
   }
 
   // The HTTP errors take priority over unknown errors
+  if (err instanceof TooManyRequestsError) {
+    return res.status(err.status).json({
+      name: err.name,
+      message: err.message,
+      resetAt: err.resetAt.toISOString(),
+    });
+  }
+
   if (err instanceof HttpError) {
     return res.status(err.status).json({ name: err.name, message: err.message });
   }

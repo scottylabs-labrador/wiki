@@ -5,6 +5,7 @@ import { Composer } from "@/components/chat/Composer";
 import { ConversationTranscript } from "@/components/chat/ConversationTranscript";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useConversation } from "@/hooks/useConversation";
+import { formatResetAt } from "@/lib/answerStream.ts";
 import { useSession } from "@/lib/authClient";
 
 export const Route = createFileRoute("/")({
@@ -13,7 +14,7 @@ export const Route = createFileRoute("/")({
 
 function ChatComponent() {
   const { data: auth, isPending: sessionPending } = useSession();
-  const { turns, streaming, error, ask } = useConversation();
+  const { turns, streaming, error, quota, ask } = useConversation(Boolean(auth?.user));
 
   if (sessionPending) {
     return (
@@ -28,6 +29,8 @@ function ChatComponent() {
     return <AgentIntroduction />;
   }
 
+  const exhausted = quota?.remaining === 0;
+
   return (
     <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col">
       <ConversationTranscript turns={turns} streaming={streaming} />
@@ -36,10 +39,13 @@ function ChatComponent() {
           {error}
         </p>
       )}
-      <Composer disabled={streaming} onAsk={ask} />
-      <p className="px-4 pb-4 text-xs text-muted-foreground">
-        Answers are not yet drawn from Labrador documentation, so check anything that matters.
-      </p>
+      {exhausted && quota && (
+        <p role="status" className="px-6 pb-2 text-sm text-muted-foreground">
+          You have asked as many questions as this hour allows. You can ask again at{" "}
+          {formatResetAt(quota.resetAt)}.
+        </p>
+      )}
+      <Composer disabled={streaming || exhausted} onAsk={ask} />
     </div>
   );
 }

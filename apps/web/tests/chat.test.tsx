@@ -3,7 +3,15 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import { userSession } from "./fixtures.ts";
-import { askedBodies, holdAnswerStream, setAnswerDeltas, setSession } from "./msw/handlers.ts";
+import {
+  askedBodies,
+  holdAnswerStream,
+  holdBeforeAnswerText,
+  setAnswerCitations,
+  setAnswerDeltas,
+  setQuota,
+  setSession,
+} from "./msw/handlers.ts";
 import { renderApp } from "./render.tsx";
 
 async function ask(question: string) {
@@ -164,5 +172,67 @@ describe("chat", () => {
     await ask("Still there?");
 
     expect(await screen.findByRole("alert")).toBeDefined();
+  });
+
+  it("shows Citations as links once the Answer is finished", async () => {
+    setSession(userSession());
+    setAnswerDeltas(["Keycloak."]);
+    setAnswerCitations([{ title: "Auth", url: "https://github.com/example/wiki/Auth#keycloak" }]);
+    await renderApp("/");
+
+    await ask("How do members sign in?");
+
+    const citation = await screen.findByRole("link", { name: "Auth" });
+    expect(citation.getAttribute("href")).toBe("https://github.com/example/wiki/Auth#keycloak");
+  });
+
+  it("says so when the Answer is not drawn from Labrador documentation", async () => {
+    setSession(userSession());
+    setAnswerDeltas(["I do not know."]);
+    setAnswerCitations([], false);
+    await renderApp("/");
+
+    await ask("What is the weather?");
+
+    expect(
+      await screen.findByText("This Answer is not drawn from Labrador documentation."),
+    ).toBeDefined();
+    expect(screen.queryByRole("link", { name: "Auth" })).toBeNull();
+  });
+
+  it("names the Pages being consulted before the Answer has finished", async () => {
+    setSession(userSession());
+    setAnswerDeltas(["Keycloak."]);
+    setAnswerCitations([{ title: "Auth", url: "https://example.com/Auth" }]);
+    const release = holdBeforeAnswerText();
+    await renderApp("/");
+
+    await ask("How do members sign in?");
+
+    await waitFor(() => {
+      expect(screen.getByText(/Looking at Auth/)).toBeDefined();
+    });
+    expect(screen.queryByText("Keycloak.")).toBeNull();
+
+    release();
+    await waitFor(() => {
+      expect(screen.getByText("Keycloak.")).toBeDefined();
+    });
+    expect(screen.getByRole("link", { name: "Auth" })).toBeDefined();
+  });
+
+  it("disables the composer when the hour's questions are used up", async () => {
+    setSession(userSession());
+    setQuota({ remaining: 0, resetAt: "2026-09-05T18:00:00.000Z" });
+    await renderApp("/");
+
+    expect(await screen.findByText(/this hour allows/)).toBeDefined();
+
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Your question"), "Still allowed?");
+    const askButton = screen.getByRole("button", { name: "Ask" });
+    expect(
+      askButton.hasAttribute("disabled") || askButton.getAttribute("aria-disabled") === "true",
+    ).toBe(true);
   });
 });

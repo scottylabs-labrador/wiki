@@ -19,11 +19,13 @@ export interface PageChunk {
  * Chunks from the same commit, so the Corpus has to be rebuilt even though
  * nothing moved upstream.
  */
-export const CHUNKER_VERSION = 1;
+export const CHUNKER_VERSION = 2;
 
 const ATX_HEADING = /^#{1,6}[ \t]+(.*)$/;
 const SETEXT_UNDERLINE = /^[ \t]*(?:=+|-+)[ \t]*$/;
 const CODE_FENCE = /^[ \t]*(`{3,}|~{3,})/;
+/** Pandoc-style id so an HTML Source can keep the anchors it already publishes. */
+const EXPLICIT_ANCHOR = /^(.*?)\s*\{#([^\s}]+)\}\s*$/;
 
 /**
  * Splits a Page at its markdown headings, keeping each heading with its text.
@@ -52,7 +54,10 @@ export function splitIntoChunks(markdown: string): PageChunk[] {
 
   function startSection(heading: string) {
     flush();
-    current = { heading, anchor: slugger.slug(heading), body: "" };
+    const explicit = EXPLICIT_ANCHOR.exec(heading);
+    const title = explicit?.[1]?.trim() || heading;
+    const anchor = explicit?.[2] ?? slugger.slug(title);
+    current = { heading: title, anchor, body: "" };
   }
 
   const source = markdown.split("\n");

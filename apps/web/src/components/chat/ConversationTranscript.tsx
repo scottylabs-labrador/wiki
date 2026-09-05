@@ -1,5 +1,10 @@
 import { useEffect, useRef } from "react";
 
+import {
+  AnswerCitations,
+  ConsultingPages,
+  UngroundedNotice,
+} from "@/components/chat/AnswerCitations";
 import { AnswerMarkdown } from "@/components/chat/AnswerMarkdown";
 import type { Turn } from "@/lib/answerStream.ts";
 
@@ -41,10 +46,16 @@ export function ConversationTranscript({
           </p>
         ) : (
           <div key={index} className="max-w-[80%]">
+            {streaming &&
+              index === turns.length - 1 &&
+              turn.citations &&
+              turn.citations.length > 0 && <ConsultingPages citations={turn.citations} />}
             <AnswerMarkdown>{turn.content}</AnswerMarkdown>
-            {turn.content === "" && streaming && (
+            {turn.content === "" && streaming && !turn.citations?.length && (
               <p className="text-sm text-muted-foreground">Writing an answer…</p>
             )}
+            {!streaming && turn.grounded === false && <UngroundedNotice />}
+            {!streaming && turn.citations && <AnswerCitations citations={turn.citations} />}
           </div>
         ),
       )}

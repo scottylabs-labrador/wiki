@@ -17,5 +17,7 @@ export const testDb = drizzle({ client: pglite });
 await migrate(testDb, { migrationsFolder });
 
 export async function resetDb() {
-  await testDb.execute(sql`TRUNCATE TABLE "source_ingest", "page", "chunk" CASCADE`);
+  await testDb.execute(
+    sql`TRUNCATE TABLE "source_ingest", "page", "chunk", "question_rate" CASCADE`,
+  );
 }

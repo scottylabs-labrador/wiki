@@ -93,4 +93,34 @@ describe("retrieve", () => {
     expect(embedder.model).toBe("openai/text-embedding-3-small");
     expect(embedder.embedded).toEqual([AUTH_QUESTION]);
   });
+
+  it("drops Chunks that fall below the similarity threshold", async () => {
+    await storeChunk({ filename: "Styling.md", body: STYLING_BODY, embedding: unitVector(1) });
+    await storeChunk({ filename: "Auth.md", body: AUTH_BODY, embedding: unitVector(0) });
+
+    const embedder = fakeEmbedder("fake-embed-v1", { [AUTH_QUESTION]: unitVector(0) });
+    const retrieved = await retrieve({
+      db: testDb,
+      embedder,
+      question: AUTH_QUESTION,
+      minSimilarity: 0.5,
+    });
+
+    expect(retrieved.map((item) => item.body)).toEqual([AUTH_BODY]);
+    expect(retrieved[0]?.similarity).toBeCloseTo(1);
+  });
+
+  it("returns nothing when no Chunk is similar enough", async () => {
+    await storeChunk({ filename: "Styling.md", body: STYLING_BODY, embedding: unitVector(1) });
+
+    const embedder = fakeEmbedder("fake-embed-v1", { [AUTH_QUESTION]: unitVector(0) });
+    const retrieved = await retrieve({
+      db: testDb,
+      embedder,
+      question: AUTH_QUESTION,
+      minSimilarity: 0.5,
+    });
+
+    expect(retrieved).toEqual([]);
+  });
 });

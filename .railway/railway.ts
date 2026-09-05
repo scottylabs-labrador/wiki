@@ -9,8 +9,9 @@ export default defineRailway(() => {
   // Railway's managed Postgres image does not carry pgvector, and the Corpus
   // stores Chunk embeddings in a `vector` column. Pinned to the same major
   // version the volume was written by, since Postgres will not start against a
-  // data directory from another one.
-  const Postgres = database("Postgres", "postgres", { image: "pgvector/pgvector:pg17" });
+  // data directory from another one. Railway's first apply provisioned this
+  // volume on 18, so the image is pg18 rather than pg17.
+  const Postgres = database("Postgres", "postgres", { image: "pgvector/pgvector:pg18" });
   Postgres.networking = { privateNetworkEndpoint: "postgres" };
   const postgresVolume = volume("postgres-volume");
   const _wikiweb = service("@wiki/web", {
@@ -53,24 +54,24 @@ export default defineRailway(() => {
     networking: { privateNetworkEndpoint: "wikiserver" },
     env: {
       ADMIN_GROUP: "wiki-admins",
-      ALLOWED_ORIGINS_REGEX: "https://stack.scottylabs.org",
+      ALLOWED_ORIGINS_REGEX: "https://wiki.scottylabs.org",
       AUTH_CLIENT_ID: "wiki-prod",
       AUTH_CLIENT_SECRET: preserve(),
       AUTH_ISSUER: "https://idp.scottylabs.org/realms/labrador",
       AUTH_JWKS_URI: "https://idp.scottylabs.org/realms/labrador/protocol/openid-connect/certs",
-      BETTER_AUTH_URL: "https://stack.scottylabs.org",
+      BETTER_AUTH_URL: "https://wiki.scottylabs.org",
       DATABASE_URL: "${{Postgres.DATABASE_URL}}",
       // Credit ceiling lives on this key in OpenRouter, as a backstop independent
       // of the per-member question limit.
       OPENROUTER_API_KEY: preserve(),
-      OPENROUTER_MODEL: preserve(),
+      OPENROUTER_MODEL: "~deepseek/deepseek-v4-flash-latest",
       OPENROUTER_EMBEDDING_MODEL: "openai/text-embedding-3-small",
       // Trust-critical: neighbours below this cosine similarity are treated as
       // irrelevant, so a question the wiki has never covered is not decorated
       // with Citations. Adjustable without a code deploy. See ADR-0002.
       RETRIEVAL_MIN_SIMILARITY: "0.3",
       SENTRY_DSN: preserve(),
-      SERVER_URL: "https://api.stack.scottylabs.org",
+      SERVER_URL: "https://api.wiki.scottylabs.org",
     },
   });
 

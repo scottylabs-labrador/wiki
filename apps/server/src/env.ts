@@ -13,6 +13,7 @@ const envSchema = z.object({
   DATABASE_URL: z.string(),
   OPENROUTER_API_KEY: z.string(),
   OPENROUTER_MODEL: z.string(),
+  OPENROUTER_EMBEDDING_MODEL: z.string().default("openai/text-embedding-3-small"),
   SENTRY_DSN: z.string().optional(),
   SERVER_URL: z.url(),
   SERVER_PORT: z.coerce.number().default(80),

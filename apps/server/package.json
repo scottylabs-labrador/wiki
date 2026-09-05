@@ -6,6 +6,7 @@
     "@sentry/bun": "^10.42.0",
     "@tsoa/runtime": "^7.0.0-alpha.0",
     "@wiki/access-control": "workspace:*",
+    "@wiki/corpus": "workspace:*",
     "@wiki/db": "workspace:*",
     "better-auth": "^1.6.26",
     "cors": "^2.8.6",

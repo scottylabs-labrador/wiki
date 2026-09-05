@@ -1,4 +1,8 @@
+import { retrieve, type RetrievedChunk } from "@wiki/corpus";
+
 import { env } from "../env.ts";
+import { db } from "../lib/db.ts";
+import { embedder } from "../lib/embedder.ts";
 
 /** One question or one Answer in a conversation, as the chat model sees it. */
 export interface Turn {
@@ -8,14 +12,24 @@ export interface Turn {
 
 const CHAT_MODEL_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-// There is no Corpus wired up yet, so the model answers from general knowledge
-// and is told to admit that. Grounding replaces this instruction later.
-const SYSTEM_PROMPT = [
+const ROLE = [
   "You are the wiki agent for ScottyLabs Labrador, a student software committee",
   "at Carnegie Mellon University. Answer in GitHub-flavoured markdown, and keep",
-  "answers short unless asked for detail. You have not been given any Labrador",
-  "documentation to read, so say plainly when you are guessing or unsure rather",
-  "than inventing committee specifics such as names, dates, or links.",
+  "answers short unless asked for detail.",
+].join(" ");
+
+const UNGROUNDED = [
+  ROLE,
+  "You have not been given any Labrador documentation to read, so say plainly",
+  "when you are guessing or unsure rather than inventing committee specifics",
+  "such as names, dates, or links.",
+].join(" ");
+
+const GROUNDED = [
+  ROLE,
+  "Base your Answer on the documentation below rather than guessing. If it does",
+  "not cover the question, say so rather than inventing committee specifics such",
+  "as names, dates, or links.",
 ].join(" ");
 
 /** One frame of a streamed Answer, as OpenRouter writes it on the wire. */
@@ -38,6 +52,7 @@ export async function openAnswerStream(
   turns: Turn[],
   signal: AbortSignal,
 ): Promise<AsyncIterable<string>> {
+  const chunks = await similarChunks(turns);
   const response = await fetch(CHAT_MODEL_URL, {
     method: "POST",
     signal,
@@ -47,7 +62,7 @@ export async function openAnswerStream(
     },
     body: JSON.stringify({
       model: env.OPENROUTER_MODEL,
-      messages: [{ role: "system", content: SYSTEM_PROMPT }, ...turns],
+      messages: [{ role: "system", content: systemPrompt(chunks) }, ...turns],
       stream: true,
       // Reasoning is on by default for this model, so it has to be switched off
       // explicitly for an Answer to start arriving instantly. `enabled: false`
@@ -62,6 +77,32 @@ export async function openAnswerStream(
   }
 
   return readDeltas(response.body);
+}
+
+/** Retrieves the Chunks most similar to the latest question, or none. */
+async function similarChunks(turns: Turn[]): Promise<RetrievedChunk[]> {
+  const question = lastQuestion(turns);
+  if (!question) {
+    return [];
+  }
+  return await retrieve({ db, embedder, question });
+}
+
+function lastQuestion(turns: Turn[]): string | undefined {
+  for (let index = turns.length - 1; index >= 0; index -= 1) {
+    const turn = turns[index];
+    if (turn?.role === "user") {
+      return turn.content;
+    }
+  }
+  return undefined;
+}
+
+function systemPrompt(chunks: RetrievedChunk[]): string {
+  if (chunks.length === 0) {
+    return UNGROUNDED;
+  }
+  return `${GROUNDED}\n\n${chunks.map((item) => item.body).join("\n\n")}`;
 }
 
 /** Yields the text of each delta frame, skipping keep-alives and framing. */

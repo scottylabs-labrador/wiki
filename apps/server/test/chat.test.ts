@@ -1,3 +1,4 @@
+import { chunk, EMBEDDING_DIMENSIONS, page } from "@wiki/db/schema";
 import request from "supertest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -5,6 +6,7 @@ import { app } from "../src/app.ts";
 import { ANSWER_STREAM_PATH, MAX_CONVERSATION_CHARS, MAX_TURNS } from "../src/routes/chatRoute.ts";
 import type { Turn } from "../src/services/answerService.ts";
 import { aliceSession, seedAlice } from "./fixtures.ts";
+import { testDb } from "./harness.ts";
 
 const OPENROUTER_ORIGIN = "https://openrouter.ai";
 
@@ -204,4 +206,56 @@ describe(`POST ${ANSWER_STREAM_PATH}`, () => {
 
     expect(res.status).toBe(502);
   });
+
+  it("grounds the chat model in a retrieved Chunk body", async () => {
+    await seedAlice();
+    const documented = "ScottyStack authenticates members through Keycloak, not Auth0 or Clerk.";
+    await seedChunk(documented);
+    fakeOpenRouter(() => deltaStream(["ok"]));
+
+    const res = await request(app)
+      .post(ANSWER_STREAM_PATH)
+      .set(await aliceSession())
+      .send({
+        turns: [{ role: "user", content: "What does ScottyStack use for authentication?" }],
+      });
+
+    expect(res.status).toBe(200);
+    expect(sent[0]?.messages[0]?.content).toContain(documented);
+  });
+
+  it("still streams an Answer when the Corpus is empty", async () => {
+    await seedAlice();
+    fakeOpenRouter(() => deltaStream(["ok"]));
+
+    const res = await request(app)
+      .post(ANSWER_STREAM_PATH)
+      .set(await aliceSession())
+      .send({ turns: userTurns(1) });
+
+    expect(res.status).toBe(200);
+    expect(sent).toHaveLength(1);
+  });
 });
+
+async function seedChunk(body: string) {
+  const [inserted] = await testDb
+    .insert(page)
+    .values({
+      sourceId: "test-wiki",
+      filename: "Auth.md",
+      publicUrl: "https://wiki.example.com/Auth",
+    })
+    .returning({ id: page.id });
+
+  if (!inserted) {
+    throw new Error("Failed to store Page");
+  }
+
+  await testDb.insert(chunk).values({
+    pageId: inserted.id,
+    body,
+    ordinal: 0,
+    embedding: Array.from({ length: EMBEDDING_DIMENSIONS }, () => 1),
+  });
+}

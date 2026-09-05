@@ -9,4 +9,5 @@ export {
   type Source,
   type SourcePage,
 } from "./ingestService.ts";
+export { retrieve, type RetrievedChunk } from "./retrieve.ts";
 export { isPage, pageUrl, scottyStackWiki, SOURCE_ID } from "./scottyStackWiki.ts";

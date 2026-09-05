@@ -12,11 +12,23 @@ process.env["BETTER_AUTH_SECRET"] ??= "test-auth-secret-Q2m8xV4pL7rT1nB6kY0wJ9sD
 process.env["DATABASE_URL"] ??= "postgres://localhost:5432/test";
 process.env["OPENROUTER_API_KEY"] ??= "test-openrouter-key";
 process.env["OPENROUTER_MODEL"] ??= "~deepseek/deepseek-v4-flash-latest";
+process.env["OPENROUTER_EMBEDDING_MODEL"] ??= "openai/text-embedding-3-small";
 process.env["SERVER_URL"] ??= "https://api.example.com";
 
 vi.mock("../src/lib/db.ts", async () => {
   const { testDb } = await import("./harness.ts");
   return { db: testDb };
+});
+
+vi.mock("../src/lib/embedder.ts", async () => {
+  const { EMBEDDING_DIMENSIONS } = await import("@wiki/db/schema");
+  return {
+    embedder: {
+      model: process.env["OPENROUTER_EMBEDDING_MODEL"] ?? "openai/text-embedding-3-small",
+      embed: (texts: string[]) =>
+        Promise.resolve(texts.map(() => Array.from({ length: EMBEDDING_DIMENSIONS }, () => 1))),
+    },
+  };
 });
 
 vi.mock("jwks-rsa", async () => {

@@ -13,6 +13,13 @@ export class HttpError extends Error {
   }
 }
 
+export class BadRequestError extends HttpError {
+  constructor(message: string) {
+    super(400, message);
+    this.name = "BadRequest";
+  }
+}
+
 export class AuthenticationError extends HttpError {
   constructor() {
     super(401);
@@ -27,10 +34,24 @@ export class AuthorizationError extends HttpError {
   }
 }
 
+export class PayloadTooLargeError extends HttpError {
+  constructor(message: string) {
+    super(413, message);
+    this.name = "PayloadTooLarge";
+  }
+}
+
 export class InternalServerError extends HttpError {
   constructor(message: string) {
     super(500, message);
     this.name = "InternalServerError";
+  }
+}
+
+export class BadGatewayError extends HttpError {
+  constructor(message: string) {
+    super(502, message);
+    this.name = "BadGateway";
   }
 }
 

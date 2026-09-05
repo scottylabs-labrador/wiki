@@ -2,7 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { PGlite } from "@electric-sql/pglite";
-import { account, user } from "@wiki/db/schema";
+import { account, session, user } from "@wiki/db/schema";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
@@ -44,6 +44,18 @@ export async function seedUser(opts: {
     accountId: opts.accountId,
     providerId: "keycloak",
     userId: opts.id,
+    // The custom session decodes this to work out the user's role, so a signed-in
+    // request fails without it.
+    accessToken: bearerToken({ sub: opts.accountId }),
+    accessTokenExpiresAt: new Date(now.getTime() + 60 * 60 * 1000),
+    createdAt: now,
+    updatedAt: now,
+  });
+  await testDb.insert(session).values({
+    id: `${opts.id}-session`,
+    token: sessionToken(opts.id),
+    userId: opts.id,
+    expiresAt: new Date(now.getTime() + 60 * 60 * 1000),
     createdAt: now,
     updatedAt: now,
   });
@@ -61,4 +73,34 @@ export function bearerToken(opts: { sub: string; groups?: string[] }) {
 
 export function authHeader(opts: { sub: string; groups?: string[] }) {
   return { Authorization: `Bearer ${bearerToken(opts)}` };
+}
+
+function sessionToken(userId: string) {
+  return `${userId}-session-token`;
+}
+
+// Better Auth prefixes its cookies when the base URL is https.
+const cookieName = `${
+  process.env["SERVER_URL"]?.startsWith("https:") ? "__Secure-" : ""
+}better-auth.session_token`;
+
+/**
+ * Builds the cookie header Better Auth accepts for a seeded user's session.
+ *
+ * Better Auth signs the session cookie with an HMAC of the session token, so a
+ * bare token in the header is rejected.
+ */
+export async function sessionHeader(opts: { id: string }) {
+  const token = sessionToken(opts.id);
+  const secret = process.env["BETTER_AUTH_SECRET"] ?? "";
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(token));
+  const encoded = btoa(String.fromCharCode(...new Uint8Array(signature)));
+  return { Cookie: `${cookieName}=${token}.${encoded}` };
 }

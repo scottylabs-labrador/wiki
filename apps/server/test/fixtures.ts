@@ -1,4 +1,4 @@
-import { authHeader, seedUser } from "./harness.ts";
+import { authHeader, seedUser, sessionHeader } from "./harness.ts";
 
 export const alice = {
   id: "alice",
@@ -36,3 +36,5 @@ export async function seedAdmin() {
 export const aliceAuth = () => authHeader({ sub: alice.accountId });
 export const bobAuth = () => authHeader({ sub: bob.accountId });
 export const adminAuth = () => authHeader({ sub: adminUser.accountId, groups: ["test-admins"] });
+
+export const aliceSession = () => sessionHeader(alice);

@@ -8,7 +8,10 @@ process.env["AUTH_CLIENT_ID"] ??= "test-client-id";
 process.env["AUTH_CLIENT_SECRET"] ??= "test-client-secret";
 process.env["AUTH_JWKS_URI"] ??= "https://auth.example.com/.well-known/jwks.json";
 process.env["BETTER_AUTH_URL"] ??= "https://auth.example.com";
+process.env["BETTER_AUTH_SECRET"] ??= "test-auth-secret-Q2m8xV4pL7rT1nB6kY0wJ9sD3fH5cZ";
 process.env["DATABASE_URL"] ??= "postgres://localhost:5432/test";
+process.env["OPENROUTER_API_KEY"] ??= "test-openrouter-key";
+process.env["OPENROUTER_MODEL"] ??= "~deepseek/deepseek-v4-flash-latest";
 process.env["SERVER_URL"] ??= "https://api.example.com";
 
 vi.mock("../src/lib/db.ts", async () => {

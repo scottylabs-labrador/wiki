@@ -10,9 +10,16 @@ test.beforeEach(async () => {
 test("a guest can see the app shell", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.getByRole("button", { name: "Sign In" })).toBeVisible();
-  await expect(page.getByText("Wiki")).toBeVisible();
-  await expect(page.getByText("Home")).toBeVisible();
+  // Both the navbar and the signed-out page offer a sign-in button, so each
+  // assertion says which one it means.
+  const nav = page.getByRole("navigation");
+  await expect(nav.getByRole("button", { name: "Sign In" })).toBeVisible();
+  await expect(nav.getByText("Wiki")).toBeVisible();
+
+  const main = page.getByRole("main");
+  await expect(main.getByRole("heading", { name: "Ask the Labrador wiki agent" })).toBeVisible();
+  await expect(main.getByRole("button", { name: "Sign In" })).toBeVisible();
+  await expect(main.getByLabel("Your question")).toBeHidden();
 });
 
 test("an admin can open the dashboard and see users", async ({ page, context }) => {

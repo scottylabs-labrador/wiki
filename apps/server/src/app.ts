@@ -13,6 +13,7 @@ import { env } from "./env.ts";
 import { auth } from "./lib/auth.ts";
 import { errorHandler } from "./middlewares/errorHandler.ts";
 import { notFoundHandler } from "./middlewares/notFoundHandler.ts";
+import { ANSWER_STREAM_PATH, streamAnswer } from "./routes/chatRoute.ts";
 
 const app = express();
 
@@ -42,6 +43,11 @@ app.use(
 app.get("/openapi.json", (_req, res) => {
   res.status(200).send(swaggerJson);
 });
+
+// The only route outside `RegisterRoutes`. TSOA cannot describe server-sent
+// events in an OpenAPI spec, so the Answer stream is mounted by hand. It needs
+// both the Better Auth handler and `express.json` above it.
+app.post(ANSWER_STREAM_PATH, streamAnswer);
 
 RegisterRoutes(app);
 app.get("/", (_req, res) => {

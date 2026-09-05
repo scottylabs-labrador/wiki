@@ -21,5 +21,9 @@ export const stackEnv = {
   AUTH_CLIENT_ID: "e2e-client",
   AUTH_CLIENT_SECRET: "e2e-secret",
   AUTH_JWKS_URI: "https://auth.example.com/.well-known/jwks.json",
+  // The chat model is never reached in these tests; a guest never gets that far
+  // and no test signs in to ask a question.
+  OPENROUTER_API_KEY: "e2e-openrouter-key",
+  OPENROUTER_MODEL: "~deepseek/deepseek-v4-flash-latest",
   VITE_SERVER_URL: API_URL,
 };

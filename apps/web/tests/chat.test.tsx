@@ -182,7 +182,9 @@ describe("chat", () => {
 
     await ask("How do members sign in?");
 
-    const citation = await screen.findByRole("link", { name: "Auth" });
+    const citation = await screen.findByRole("link", {
+      name: "https://github.com/example/wiki/Auth#keycloak",
+    });
     expect(citation.getAttribute("href")).toBe("https://github.com/example/wiki/Auth#keycloak");
   });
 
@@ -218,7 +220,7 @@ describe("chat", () => {
     await waitFor(() => {
       expect(screen.getByText("Keycloak.")).toBeDefined();
     });
-    expect(screen.getByRole("link", { name: "Auth" })).toBeDefined();
+    expect(screen.getByRole("link", { name: "https://example.com/Auth" })).toBeDefined();
   });
 
   it("disables the composer when the hour's questions are used up", async () => {

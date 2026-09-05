@@ -15,9 +15,9 @@ export function AnswerCitations({ citations }: { citations: Citation[] }) {
               href={citation.url}
               target="_blank"
               rel="noreferrer"
-              className="text-sm text-primary underline-offset-4 hover:underline"
+              className="text-xs text-blue-600 underline underline-offset-4 break-all dark:text-blue-400"
             >
-              {citation.title}
+              {citation.url}
             </a>
           </li>
         ))}

@@ -60,6 +60,8 @@ export const scottyStackWiki: Source = {
     try {
       await git.clone({ fs, http, dir, url: CLONE_URL, singleBranch: true, depth: 1 });
 
+      // Only the repository's top level, because that is the whole of what
+      // GitHub publishes as Pages.
       const pages: SourcePage[] = [];
       for (const filename of (await readdir(dir)).filter(isPage)) {
         pages.push({ filename, markdown: await readFile(path.join(dir, filename), "utf8") });

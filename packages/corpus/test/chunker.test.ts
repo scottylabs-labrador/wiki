@@ -59,6 +59,38 @@ describe("splitIntoChunks", () => {
     expect(chunks[1]?.body).toBe("### Port in use\n\nKill it.");
   });
 
+  it("starts a Chunk at an underlined heading, which GitHub also anchors", () => {
+    const chunks = splitIntoChunks(
+      ["Overview", "========", "", "What this is.", "", "Details", "-------", "", "More."].join(
+        "\n",
+      ),
+    );
+
+    expect(chunks.map((chunk) => chunk.heading)).toEqual(["Overview", "Details"]);
+    expect(chunks.map((chunk) => chunk.anchor)).toEqual(["overview", "details"]);
+  });
+
+  it("does not mistake a thematic break for an underlined heading", () => {
+    const chunks = splitIntoChunks(["Above the rule.", "", "---", "", "Below it."].join("\n"));
+
+    expect(chunks.map((chunk) => chunk.heading)).toEqual([null]);
+  });
+
+  it("only lets a code fence be closed by its own marker", () => {
+    const chunks = splitIntoChunks(
+      ["## Quickstart", "", "```bash", "~~~", "# still inside the fence", "```", "", "Done."].join(
+        "\n",
+      ),
+    );
+
+    expect(chunks.map((chunk) => chunk.heading)).toEqual(["Quickstart"]);
+  });
+
+  it("yields no Chunk for a Page with nothing to retrieve", () => {
+    expect(splitIntoChunks("")).toEqual([]);
+    expect(splitIntoChunks("   \n\n  ")).toEqual([]);
+  });
+
   it("anchors a heading the way GitHub slugs it, disambiguating repeats", () => {
     const chunks = splitIntoChunks(
       ["## Dev Container Setup Guide", "", "text", "", "## Dev Container Setup Guide"].join("\n"),

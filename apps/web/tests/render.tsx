@@ -31,6 +31,7 @@ export async function renderApp(path = "/") {
     history: createMemoryHistory({ initialEntries: [path] }),
     context: { queryClient },
   });
+  await router.load();
 
   return {
     ...render(

@@ -1,0 +1,6 @@
+#!/usr/bin/env zsh
+set -e
+editorconfig-checker --exclude '(^LICENSE|^packages/db/drizzle/.*$)'
+bun run syncpack
+bunx markdownlint-cli2
+bun run check

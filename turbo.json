@@ -1,0 +1,19 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
+  "tasks": {
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "@scottystack/server#build:api": {},
+    "build": {
+      "dependsOn": ["^build", "@scottystack/server#build:api"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": ["dist/**"]
+    },
+    "test": {
+      "inputs": ["$TURBO_DEFAULT$"]
+    }
+  }
+}

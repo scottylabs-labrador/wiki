@@ -3,10 +3,10 @@
   "version": "0.0.0",
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.5.4",
-    "@wiki/access-control": "workspace:*",
-    "@wiki/db": "workspace:*",
     "@sentry/bun": "^10.42.0",
     "@tsoa/runtime": "^7.0.0-alpha.0",
+    "@wiki/access-control": "workspace:*",
+    "@wiki/db": "workspace:*",
     "better-auth": "^1.6.26",
     "cors": "^2.8.6",
     "drizzle-orm": "^0.45.2",

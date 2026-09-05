@@ -79,7 +79,6 @@ export default defineRailway(() => {
       DATABASE_URL: "${{Postgres.DATABASE_URL}}",
       OPENROUTER_API_KEY: preserve(),
       OPENROUTER_EMBEDDING_MODEL: "openai/text-embedding-3-small",
-      SENTRY_DSN: preserve(),
     },
   });
 

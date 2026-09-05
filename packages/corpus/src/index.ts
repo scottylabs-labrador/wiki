@@ -1,5 +1,7 @@
+export { EMBEDDING_DIMENSIONS } from "@wiki/db/schema";
+
 export { CHUNKER_VERSION, splitIntoChunks, type PageChunk } from "./chunker.ts";
-export { EMBEDDING_DIMENSIONS, openRouterEmbedder, type Embedder } from "./embeddings.ts";
+export { openRouterEmbedder, type Embedder } from "./embeddings.ts";
 export {
   ingest,
   type CorpusDatabase,

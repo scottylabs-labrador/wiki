@@ -1,8 +1,8 @@
 import { chunk, page, sourceIngest } from "@wiki/db/schema";
+import { EMBEDDING_DIMENSIONS } from "@wiki/db/schema";
 import { asc, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { EMBEDDING_DIMENSIONS } from "../src/embeddings.ts";
 import { ingest } from "../src/ingestService.ts";
 import { testDb } from "./harness.ts";
 

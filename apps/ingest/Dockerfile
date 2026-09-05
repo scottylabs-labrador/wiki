@@ -22,13 +22,11 @@ WORKDIR /app
 RUN groupadd --system --gid 1001 ingest && \
     useradd --system --uid 1001 --gid 1001 ingest
 
+# The wiki is cloned over anonymous HTTPS by a JavaScript git client, so this
+# image needs no git binary and no credentials.
 COPY --from=builder --chown=ingest:ingest \
   /app/apps/ingest/dist \
   /app/apps/ingest/dist
-
-# The wiki is cloned over anonymous HTTPS by a JavaScript git client, so this
-# image needs no git binary and no credentials.
-RUN bun install @sentry/bun
 
 USER ingest
 WORKDIR /app/apps/ingest

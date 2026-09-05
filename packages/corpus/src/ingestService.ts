@@ -1,4 +1,8 @@
-import { chunk, page, sourceIngest } from "@wiki/db/schema";
+import {
+  chunk as chunkTable,
+  page as pageTable,
+  sourceIngest as sourceIngestTable,
+} from "@wiki/db/schema";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 
@@ -51,66 +55,74 @@ export interface IngestOutcome {
  * Embedding happens before the write and the write happens in one transaction,
  * so a failure at any point leaves the previous Corpus exactly as it was.
  */
-export async function ingest(deps: {
+export async function ingest({
+  db,
+  source,
+  embedder,
+}: {
   db: CorpusDatabase;
   source: Source;
   embedder: Embedder;
 }): Promise<IngestOutcome> {
-  const { db, source, embedder } = deps;
   const upstreamSha = await source.headSha();
+  const fingerprint = {
+    upstreamSha,
+    embeddingModel: embedder.model,
+    chunkerVersion: CHUNKER_VERSION,
+  };
 
   const [previous] = await db
     .select()
-    .from(sourceIngest)
-    .where(eq(sourceIngest.sourceId, source.id));
+    .from(sourceIngestTable)
+    .where(eq(sourceIngestTable.sourceId, source.id));
 
   if (
-    previous?.upstreamSha === upstreamSha &&
-    previous.embeddingModel === embedder.model &&
-    previous.chunkerVersion === CHUNKER_VERSION
+    previous?.upstreamSha === fingerprint.upstreamSha &&
+    previous.embeddingModel === fingerprint.embeddingModel &&
+    previous.chunkerVersion === fingerprint.chunkerVersion
   ) {
     return { sourceId: source.id, upstreamSha, unchanged: true, pages: 0, chunks: 0 };
   }
 
-  const pages = await source.fetchPages();
-  const split = pages.map((sourcePage) => ({
-    ...sourcePage,
+  const chunkedPages = (await source.fetchPages()).map((sourcePage) => ({
+    filename: sourcePage.filename,
     chunks: splitIntoChunks(sourcePage.markdown),
   }));
 
-  const bodies = split.flatMap((sourcePage) => sourcePage.chunks.map((one) => one.body));
+  const bodies = chunkedPages.flatMap((sourcePage) =>
+    sourcePage.chunks.map((pageChunk) => pageChunk.body),
+  );
   const embeddings = await embedder.embed(bodies);
-  if (embeddings.length !== bodies.length) {
-    throw new Error(`Embedded ${embeddings.length} of ${bodies.length} Chunks`);
-  }
 
   // Pair each Chunk with its vector up front, so the transaction below is
   // nothing but writes.
   const vectors = embeddings[Symbol.iterator]();
-  const embedded = split.map((sourcePage) => ({
+  const embeddedPages = chunkedPages.map((sourcePage) => ({
     filename: sourcePage.filename,
-    chunks: sourcePage.chunks.map((one, ordinal) => {
+    chunks: sourcePage.chunks.map((pageChunk, ordinal) => {
       const { value: embedding } = vectors.next();
       if (!embedding) {
-        throw new Error(`Missing an embedding for ${sourcePage.filename}`);
+        throw new Error(
+          `${embedder.model} returned ${embeddings.length} vectors for ${bodies.length} Chunks`,
+        );
       }
-      return { ...one, ordinal, embedding };
+      return { ...pageChunk, ordinal, embedding };
     }),
   }));
 
   await db.transaction(async (tx) => {
     // Chunks cascade from their Page.
-    await tx.delete(page).where(eq(page.sourceId, source.id));
+    await tx.delete(pageTable).where(eq(pageTable.sourceId, source.id));
 
-    for (const sourcePage of embedded) {
+    for (const sourcePage of embeddedPages) {
       const [inserted] = await tx
-        .insert(page)
+        .insert(pageTable)
         .values({
           sourceId: source.id,
           filename: sourcePage.filename,
           publicUrl: source.pageUrl(sourcePage.filename),
         })
-        .returning({ id: page.id });
+        .returning({ id: pageTable.id });
 
       if (!inserted) {
         throw new Error(`Failed to store Page ${sourcePage.filename}`);
@@ -118,36 +130,23 @@ export async function ingest(deps: {
 
       if (sourcePage.chunks.length > 0) {
         await tx
-          .insert(chunk)
-          .values(sourcePage.chunks.map((one) => ({ ...one, pageId: inserted.id })));
+          .insert(chunkTable)
+          .values(sourcePage.chunks.map((pageChunk) => ({ ...pageChunk, pageId: inserted.id })));
       }
     }
 
+    const completed = { ...fingerprint, ingestedAt: new Date() };
     await tx
-      .insert(sourceIngest)
-      .values({
-        sourceId: source.id,
-        upstreamSha,
-        embeddingModel: embedder.model,
-        chunkerVersion: CHUNKER_VERSION,
-        ingestedAt: new Date(),
-      })
-      .onConflictDoUpdate({
-        target: sourceIngest.sourceId,
-        set: {
-          upstreamSha,
-          embeddingModel: embedder.model,
-          chunkerVersion: CHUNKER_VERSION,
-          ingestedAt: new Date(),
-        },
-      });
+      .insert(sourceIngestTable)
+      .values({ sourceId: source.id, ...completed })
+      .onConflictDoUpdate({ target: sourceIngestTable.sourceId, set: completed });
   });
 
   return {
     sourceId: source.id,
     upstreamSha,
     unchanged: false,
-    pages: embedded.length,
+    pages: embeddedPages.length,
     chunks: bodies.length,
   };
 }

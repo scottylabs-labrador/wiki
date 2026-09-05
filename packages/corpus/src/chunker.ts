@@ -32,13 +32,15 @@ export function splitIntoChunks(markdown: string): PageChunk[] {
   const lines: string[] = [];
   let inCodeFence = false;
 
-  const flush = () => {
+  // Closes off the section being read. A section that turned out to hold no
+  // text is dropped, so a Page cannot contribute an empty Chunk.
+  function flush() {
     const body = lines.join("\n").trim();
     lines.length = 0;
     if (body) {
       chunks.push({ ...current, body });
     }
-  };
+  }
 
   for (const line of markdown.split("\n")) {
     if (CODE_FENCE.test(line)) {

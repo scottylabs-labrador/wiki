@@ -28,7 +28,6 @@
       "name": "@wiki/ingest",
       "version": "0.0.0",
       "dependencies": {
-        "@sentry/bun": "^10.42.0",
         "@wiki/corpus": "workspace:*",
         "@wiki/db": "workspace:*",
         "drizzle-orm": "^0.45.2",

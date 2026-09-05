@@ -1,7 +1,5 @@
 import { EMBEDDING_DIMENSIONS } from "@wiki/db/schema";
 
-export { EMBEDDING_DIMENSIONS };
-
 const EMBEDDINGS_URL = "https://openrouter.ai/api/v1/embeddings";
 
 /**

@@ -16,7 +16,7 @@ services:
       - "80:80"
 
   postgres:
-    image: postgres:17
+    image: pgvector/pgvector:pg17
     container_name: wiki-postgres
     environment:
       POSTGRES_USER: postgres

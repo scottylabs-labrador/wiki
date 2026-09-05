@@ -1,0 +1,22 @@
+{
+  "name": "@wiki/ingest",
+  "version": "0.0.0",
+  "dependencies": {
+    "@sentry/bun": "^10.42.0",
+    "@wiki/corpus": "workspace:*",
+    "@wiki/db": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.10"
+  },
+  "module": "src/main.ts",
+  "private": true,
+  "scripts": {
+    "build": "bun build src/main.ts --outdir=dist --target=bun --sourcemap",
+    "ingest": "secretspec run -P local -- bun run src/main.ts",
+    "start": "bun dist/main.js"
+  },
+  "type": "module"
+}

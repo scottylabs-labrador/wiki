@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { PGlite } from "@electric-sql/pglite";
+import { vector } from "@electric-sql/pglite-pgvector";
 import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
@@ -57,7 +58,7 @@ function runApp(command: string, args: string[], cwd: string) {
   });
 }
 
-const pglite = new PGlite();
+const pglite = new PGlite({ extensions: { vector } });
 await migrate(drizzle({ client: pglite }), {
   migrationsFolder: path.join(root, "packages/db/drizzle"),
 });

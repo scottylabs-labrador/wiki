@@ -2,6 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { PGlite } from "@electric-sql/pglite";
+import { vector } from "@electric-sql/pglite-pgvector";
 import { account, session, user } from "@wiki/db/schema";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
@@ -14,7 +15,9 @@ const migrationsFolder = path.resolve(
   fileURLToPath(new URL("../../../packages/db/drizzle", import.meta.url)),
 );
 
-const pglite = new PGlite();
+// The Corpus stores embeddings in a `vector` column, so the migrations only
+// replay against a PGlite that carries pgvector.
+const pglite = new PGlite({ extensions: { vector } });
 export const testDb = drizzle({ client: pglite });
 
 await migrate(testDb, { migrationsFolder });

@@ -1,0 +1,23 @@
+{
+  "name": "@wiki/corpus",
+  "version": "0.0.0",
+  "dependencies": {
+    "@wiki/db": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "github-slugger": "^2.0.0",
+    "isomorphic-git": "^1.41.9"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.5",
+    "@electric-sql/pglite-pgvector": "^0.0.6",
+    "vitest": "^4.0.18"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "private": true,
+  "scripts": {
+    "test": "vitest run"
+  },
+  "type": "module"
+}

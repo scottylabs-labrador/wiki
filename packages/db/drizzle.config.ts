@@ -7,7 +7,8 @@ export default defineConfig({
   dialect: "postgresql",
   dbCredentials: {
     url: process.env["DATABASE_URL"] as string,
-    // SSL must be `require` since Railway uses self-signed certificates.
-    ssl: "require",
+    // The pgvector image serves no TLS, and on Railway this only ever connects
+    // over the private network.
+    ssl: false,
   },
 });

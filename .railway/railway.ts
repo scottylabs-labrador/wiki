@@ -1,4 +1,4 @@
-import { defineRailway, github, postgres, preserve, project, service, volume } from "railway/iac";
+import { database, defineRailway, github, preserve, project, service, volume } from "railway/iac";
 
 export default defineRailway(() => {
   const Wiki = github("scottylabs-labrador/Wiki", {
@@ -6,7 +6,11 @@ export default defineRailway(() => {
     checkSuites: false,
   });
 
-  const Postgres = postgres("Postgres");
+  // Railway's managed Postgres image does not carry pgvector, and the Corpus
+  // stores Chunk embeddings in a `vector` column. Pinned to the same major
+  // version the volume was written by, since Postgres will not start against a
+  // data directory from another one.
+  const Postgres = database("Postgres", "postgres", { image: "pgvector/pgvector:pg17" });
   Postgres.networking = { privateNetworkEndpoint: "postgres" };
   const postgresVolume = volume("postgres-volume");
   const _wikiweb = service("@wiki/web", {
@@ -60,7 +64,26 @@ export default defineRailway(() => {
     },
   });
 
+  // A one-shot job rather than a server: it populates the Corpus and exits, so
+  // it must never be restarted on completion. The nightly schedule is added in
+  // the ticket that refreshes every Source.
+  const _wikiingest = service("@wiki/ingest", {
+    source: Wiki,
+    build: {
+      builder: "DOCKERFILE",
+      dockerfilePath: "/apps/ingest/Dockerfile",
+      watchPatterns: ["/apps/ingest/**", "/packages/corpus/**", "/packages/db/**"],
+    },
+    deploy: { restartPolicyType: "NEVER" },
+    env: {
+      DATABASE_URL: "${{Postgres.DATABASE_URL}}",
+      OPENROUTER_API_KEY: preserve(),
+      OPENROUTER_EMBEDDING_MODEL: "openai/text-embedding-3-small",
+      SENTRY_DSN: preserve(),
+    },
+  });
+
   return project("Wiki", {
-    resources: [Postgres, _wikiweb, _wikiserver, postgresVolume],
+    resources: [Postgres, _wikiweb, _wikiserver, _wikiingest, postgresVolume],
   });
 });

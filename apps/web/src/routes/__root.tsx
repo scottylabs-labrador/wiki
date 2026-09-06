@@ -15,7 +15,7 @@ interface MyRouterContext {
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
   component: () => (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex h-dvh flex-col overflow-hidden">
       <PostHogIdentify />
       <NavBar />
       <main className="flex min-h-0 flex-1 flex-col overflow-auto">

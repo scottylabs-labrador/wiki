@@ -24,7 +24,7 @@ export function Composer({
 
   return (
     <form
-      className="flex items-end gap-2 border-t border-border p-4"
+      className="sticky bottom-0 z-40 flex shrink-0 items-end gap-2 border-t border-border bg-background p-4"
       onSubmit={(event) => {
         event.preventDefault();
         submit();

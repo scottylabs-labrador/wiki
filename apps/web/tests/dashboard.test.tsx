@@ -57,7 +57,11 @@ describe("dashboard", () => {
 
     expect(await screen.findByRole("tab", { name: "Labrador Wiki Wiki" })).toBeDefined();
     expect(screen.getByRole("tab", { name: "ScottyStack Wiki" })).toBeDefined();
+    expect(
+      screen.getByRole("link", { name: "https://github.com/scottylabs-labrador/wiki/wiki" }),
+    ).toBeDefined();
     expect(screen.getByRole("tab", { name: "Home.md" })).toBeDefined();
+    expect(screen.getByRole("link", { name: "https://wiki.example.com/Home" })).toBeDefined();
     expect(screen.getByText("Welcome")).toBeDefined();
     expect(screen.queryByRole("tab", { name: "Auth.md" })).toBeNull();
     expect(screen.queryByText("Sign in")).toBeNull();
@@ -65,6 +69,12 @@ describe("dashboard", () => {
     expect(screen.queryByText("Alice")).toBeNull();
 
     await userEvent.click(screen.getByRole("tab", { name: "ScottyStack Wiki" }));
+    expect(
+      screen.getByRole("link", {
+        name: "https://github.com/scottylabs-labrador/ScottyStack/wiki",
+      }),
+    ).toBeDefined();
+    expect(screen.getByRole("link", { name: "https://wiki.example.com/Auth" })).toBeDefined();
     expect(screen.getByRole("tab", { name: "Auth.md" })).toBeDefined();
     expect(screen.getByRole("tab", { name: "Styling.md" })).toBeDefined();
     expect(screen.getByText("Sign in")).toBeDefined();

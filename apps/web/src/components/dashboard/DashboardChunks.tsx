@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { $api } from "@/lib/apiClient";
+import { cn } from "@/lib/utils";
 
 type AdminPage = {
   sourceTitle: string;
@@ -16,6 +17,13 @@ function sourceOrder(title: string): number {
   const index = sourceCatalog.findIndex((source) => source.title === title);
   return index === -1 ? sourceCatalog.length : index;
 }
+
+function sourceUrl(title: string): string | undefined {
+  return sourceCatalog.find((source) => source.title === title)?.url;
+}
+
+const sourceLinkClassName =
+  "text-sm text-blue-600 underline underline-offset-4 break-all dark:text-blue-400";
 
 function pageKey(page: AdminPage): string {
   return `${page.filename}:${page.publicUrl}`;
@@ -89,6 +97,7 @@ export function DashboardChunks() {
   const list = pages ?? [];
   const sources = useMemo(() => groupBySource(list), [list]);
   const selectedSource = sources.find((source) => source.title === sourceTitle) ?? sources[0];
+  const selectedSourceUrl = selectedSource ? sourceUrl(selectedSource.title) : undefined;
   const selectedPage =
     selectedSource?.pages.find((page) => pageKey(page) === selectedPageKey) ??
     selectedSource?.pages[0];
@@ -122,6 +131,16 @@ export function DashboardChunks() {
               setSelectedPageKey(next ? pageKey(next.pages[0]!) : null);
             }}
           />
+          {selectedSourceUrl ? (
+            <a
+              href={selectedSourceUrl}
+              target="_blank"
+              rel="noreferrer"
+              className={cn("mb-4 block", sourceLinkClassName)}
+            >
+              {selectedSourceUrl}
+            </a>
+          ) : null}
           <TabStrip
             label="Pages"
             value={pageKey(selectedPage)}
@@ -135,7 +154,7 @@ export function DashboardChunks() {
             href={selectedPage.publicUrl}
             target="_blank"
             rel="noreferrer"
-            className="text-sm text-blue-600 underline underline-offset-4 break-all dark:text-blue-400"
+            className={sourceLinkClassName}
           >
             {selectedPage.publicUrl}
           </a>

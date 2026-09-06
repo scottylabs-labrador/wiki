@@ -46,5 +46,8 @@
   },
   "[shellscript]": {
     "editor.defaultFormatter": "mkhl.shfmt"
+  },
+  "[html]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
   }
 }

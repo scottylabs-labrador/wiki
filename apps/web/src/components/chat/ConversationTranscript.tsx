@@ -36,8 +36,9 @@ export function ConversationTranscript({
   return (
     <div className="flex flex-1 flex-col gap-6 overflow-y-auto p-6">
       {/* Turns are only ever appended, so a turn's position is stable identity. */}
-      {turns.map((turn, index) =>
-        turn.role === "user" ? (
+      {turns.map((turn, index) => {
+        const inProgress = streaming && index === turns.length - 1;
+        return turn.role === "user" ? (
           <p
             key={index}
             className="ml-auto max-w-[80%] rounded-2xl bg-muted px-4 py-2 text-sm whitespace-pre-wrap"
@@ -46,19 +47,18 @@ export function ConversationTranscript({
           </p>
         ) : (
           <div key={index} className="max-w-[80%]">
-            {streaming &&
-              index === turns.length - 1 &&
-              turn.citations &&
-              turn.citations.length > 0 && <ConsultingPages citations={turn.citations} />}
+            {inProgress && turn.citations && turn.citations.length > 0 && (
+              <ConsultingPages citations={turn.citations} />
+            )}
             <AnswerMarkdown>{turn.content}</AnswerMarkdown>
-            {turn.content === "" && streaming && !turn.citations?.length && (
+            {turn.content === "" && inProgress && !turn.citations?.length && (
               <p className="text-sm text-muted-foreground">Writing an answer…</p>
             )}
-            {!streaming && turn.grounded === false && <UngroundedNotice />}
-            {!streaming && turn.citations && <AnswerCitations citations={turn.citations} />}
+            {!inProgress && turn.grounded === false && <UngroundedNotice />}
+            {!inProgress && turn.citations && <AnswerCitations citations={turn.citations} />}
           </div>
-        ),
-      )}
+        );
+      })}
       <div ref={bottom} />
     </div>
   );

@@ -221,6 +221,32 @@ describe("chat", () => {
     expect(screen.getByRole("link", { name: "https://example.com/Auth" })).toBeDefined();
   });
 
+  it("keeps Citations on finished Answers while a later Answer is still being written", async () => {
+    setSession(userSession());
+    setAnswerDeltas(["Keycloak."]);
+    setAnswerCitations([{ title: "Auth", url: "https://example.com/Auth" }]);
+    await renderApp("/");
+
+    await ask("How do members sign in?");
+    expect(await screen.findByRole("link", { name: "https://example.com/Auth" })).toBeDefined();
+
+    setAnswerDeltas(["Members."]);
+    setAnswerCitations([{ title: "Onboarding", url: "https://example.com/Onboarding" }]);
+    const release = holdBeforeAnswerText();
+    await ask("Who can join?");
+
+    await waitFor(() => {
+      expect(screen.getByText(/Looking at Onboarding/)).toBeDefined();
+    });
+    expect(screen.getByRole("link", { name: "https://example.com/Auth" })).toBeDefined();
+    expect(screen.queryByRole("link", { name: "https://example.com/Onboarding" })).toBeNull();
+
+    release();
+    await waitFor(() => {
+      expect(screen.getByRole("link", { name: "https://example.com/Onboarding" })).toBeDefined();
+    });
+  });
+
   it("disables the composer when the hour's questions are used up", async () => {
     setSession(userSession());
     setQuota({ remaining: 0, resetAt: "2026-09-05T18:00:00.000Z" });

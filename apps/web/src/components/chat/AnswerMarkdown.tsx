@@ -54,7 +54,7 @@ const ANSWER_SCHEMA: SanitizeSchema = {
 // Tailwind has no typography plugin here, so an Answer's block elements are
 // styled from the wrapper.
 const ANSWER_PROSE = [
-  "min-w-0 text-sm leading-relaxed break-words",
+  "min-w-0 text-base leading-relaxed break-words",
   "[&>*+*]:mt-3",
   "[&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground",
   "[&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[0.85em]",

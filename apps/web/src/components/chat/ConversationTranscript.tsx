@@ -25,7 +25,7 @@ export function ConversationTranscript({
   if (turns.length === 0) {
     return (
       <div className="flex min-h-0 flex-1 overflow-y-auto">
-        <p className="m-auto max-w-md p-6 text-center text-base text-muted-foreground">
+        <p className="m-auto max-w-lg p-6 text-center text-base text-muted-foreground">
           Ask anything about ScottyLabs Labrador. Note that nothing is saved, so reloading the page
           starts a new conversation.
         </p>
@@ -42,7 +42,7 @@ export function ConversationTranscript({
           return turn.role === "user" ? (
             <p
               key={index}
-              className="ml-auto max-w-[80%] rounded-2xl bg-muted px-4 py-2 text-sm whitespace-pre-wrap"
+              className="ml-auto max-w-[80%] rounded-2xl bg-muted px-4 py-2 text-base whitespace-pre-wrap"
             >
               {turn.content}
             </p>

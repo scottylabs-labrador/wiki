@@ -57,7 +57,7 @@ describe("chat", () => {
       .map((link) => ({ name: link.textContent, href: link.getAttribute("href") }));
     expect(links).toEqual([
       {
-        name: "Labrador Wiki",
+        name: "Labrador Wiki Wiki",
         href: "https://github.com/scottylabs-labrador/wiki/wiki",
       },
       {

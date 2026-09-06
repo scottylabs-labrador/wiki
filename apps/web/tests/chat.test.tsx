@@ -52,7 +52,7 @@ describe("chat", () => {
     await renderApp("/");
 
     const sidebar = await screen.findByRole("complementary", { name: "Useful Links" });
-    const links = within(sidebar)
+    const links = within(within(sidebar).getByRole("list"))
       .getAllByRole("link")
       .map((link) => ({ name: link.textContent, href: link.getAttribute("href") }));
     expect(links).toEqual([
@@ -69,6 +69,19 @@ describe("chat", () => {
         href: "https://scottylabs-labrador.github.io/goldador/",
       },
     ]);
+  });
+
+  it("asks a member to Slack Yuxiang Huang with questions or feedback", async () => {
+    setSession(userSession());
+    await renderApp("/");
+
+    const sidebar = await screen.findByRole("complementary", { name: "Useful Links" });
+    expect(within(sidebar).getByRole("link", { name: "Slack" }).getAttribute("href")).toBe(
+      "https://go.scottylabs.org/slack",
+    );
+    expect(sidebar.textContent).toMatch(
+      /Slack Yuxiang Huang if you have any questions or feedback\./,
+    );
   });
 
   it("renders a streamed Answer as markdown", async () => {

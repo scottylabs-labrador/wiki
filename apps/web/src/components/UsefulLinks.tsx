@@ -31,6 +31,17 @@ export function UsefulLinks() {
           </li>
         ))}
       </ul>
+      <p className="mt-auto text-xs text-muted-foreground">
+        <a
+          href="https://go.scottylabs.org/slack"
+          target="_blank"
+          rel="noreferrer"
+          className="text-blue-600 underline underline-offset-4 dark:text-blue-400"
+        >
+          Slack
+        </a>{" "}
+        Yuxiang Huang if you have any questions or feedback.
+      </p>
     </aside>
   );
 }

@@ -1,19 +1,43 @@
-import { database, defineRailway, github, preserve, project, service, volume } from "railway/iac";
+import { defineRailway, github, image, preserve, project, service, volume } from "railway/iac";
 
 export default defineRailway(() => {
-  const Wiki = github("scottylabs-labrador/Wiki", {
-    branch: "demo",
+  const Wiki = github("scottylabs-labrador/wiki", {
+    branch: "main",
     checkSuites: false,
   });
 
   // Railway's managed Postgres image does not carry pgvector, and the Corpus
-  // stores Chunk embeddings in a `vector` column. Pinned to the same major
-  // version the volume was written by, since Postgres will not start against a
-  // data directory from another one. Railway's first apply provisioned this
-  // volume on 18, so the image is pg18 rather than pg17.
-  const Postgres = database("Postgres", "postgres", { image: "pgvector/pgvector:pg18" });
-  Postgres.networking = { privateNetworkEndpoint: "postgres" };
-  const postgresVolume = volume("postgres-volume");
+  // stores Chunk embeddings in a `vector` column. This is a custom-image
+  // service (not database()) so IaC matches the live resource. Pinned to the
+  // same major version the volume was written by, since Postgres will not
+  // start against a data directory from another one. Railway first provisioned
+  // this volume on 18, so the image is pg18 rather than pg17.
+  const postgresVolume = volume("postgres", {
+    region: "us-east4-eqdc4a",
+    sizeMB: 50000,
+  });
+  const Postgres = service("Postgres", {
+    source: image("pgvector/pgvector:pg18"),
+    deploy: { requiredMountPath: "/var/lib/postgresql/data" },
+    networking: { privateNetworkEndpoint: "postgres" },
+    volumeMounts: {
+      "/var/lib/postgresql/data": postgresVolume,
+    },
+    env: {
+      DATABASE_URL: preserve(),
+      PGDATA: preserve(),
+      PGDATABASE: preserve(),
+      PGHOST: preserve(),
+      PGPASSWORD: preserve(),
+      PGPORT: preserve(),
+      PGUSER: preserve(),
+      POSTGRES_DB: preserve(),
+      POSTGRES_PASSWORD: preserve(),
+      POSTGRES_USER: preserve(),
+      RAILWAY_DEPLOYMENT_DRAINING_SECONDS: preserve(),
+      SSL_CERT_DAYS: preserve(),
+    },
+  });
   const _wikiweb = service("@wiki/web", {
     source: Wiki,
     build: {
@@ -75,37 +99,28 @@ export default defineRailway(() => {
     },
   });
 
-  const ingestEnv = {
-    DATABASE_URL: "${{Postgres.DATABASE_URL}}",
-    OPENROUTER_API_KEY: preserve(),
-    OPENROUTER_EMBEDDING_MODEL: "openai/text-embedding-3-small",
-  };
-  const ingestBuild = {
-    builder: "DOCKERFILE" as const,
-    dockerfilePath: "/apps/ingest/Dockerfile",
-    watchPatterns: ["/apps/ingest/**", "/packages/corpus/**", "/packages/db/**"],
-  };
-
   // A one-shot job rather than a server: it populates the Corpus and exits, so
-  // it must never be restarted on completion. A fresh deploy runs this service
-  // once so the Corpus is populated without waiting on the nightly schedule.
+  // it must never be restarted on completion. A run that hangs would cause
+  // Railway to skip the next scheduled one.
   const _wikiingest = service("@wiki/ingest", {
     source: Wiki,
-    build: ingestBuild,
-    deploy: { restartPolicyType: "NEVER" },
-    env: ingestEnv,
-  });
-
-  // Nightly refresh. Cron jobs do not run on deploy, which is why the service
-  // above exists separately rather than relying on scheduler behaviour.
-  const _wikiingestNightly = service("@wiki/ingest-nightly", {
-    source: Wiki,
-    build: ingestBuild,
-    deploy: { restartPolicyType: "NEVER", cronSchedule: "0 7 * * *" },
-    env: ingestEnv,
+    build: {
+      builder: "DOCKERFILE",
+      dockerfilePath: "/apps/ingest/Dockerfile",
+      watchPatterns: ["/apps/ingest/**", "/packages/corpus/**", "/packages/db/**"],
+    },
+    deploy: {
+      restartPolicyType: "NEVER",
+      cronSchedule: "0 7 * * *",
+    },
+    env: {
+      DATABASE_URL: "${{Postgres.DATABASE_URL}}",
+      OPENROUTER_API_KEY: preserve(),
+      OPENROUTER_EMBEDDING_MODEL: "openai/text-embedding-3-small",
+    },
   });
 
   return project("Wiki", {
-    resources: [Postgres, _wikiweb, _wikiserver, _wikiingest, _wikiingestNightly, postgresVolume],
+    resources: [Postgres, _wikiweb, _wikiserver, _wikiingest, postgresVolume],
   });
 });

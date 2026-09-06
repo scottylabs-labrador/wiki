@@ -29,8 +29,12 @@ export class QuotaExceededError extends Error {
 
 export interface Quota {
   remaining: number;
+  limit: number;
   resetAt: Date;
 }
+
+/** Matches the server's hour-long window; used if a 429 arrives before quota was fetched. */
+export const QUESTIONS_PER_WINDOW = 60;
 
 /** How many questions this hour still allows, or null if the check failed. */
 export async function fetchQuota(signal?: AbortSignal): Promise<Quota | null> {
@@ -38,11 +42,15 @@ export async function fetchQuota(signal?: AbortSignal): Promise<Quota | null> {
   if (!response.ok) {
     return null;
   }
-  const body = (await response.json()) as { remaining?: number; resetAt?: string };
+  const body = (await response.json()) as { remaining?: number; limit?: number; resetAt?: string };
   if (typeof body.remaining !== "number" || typeof body.resetAt !== "string") {
     return null;
   }
-  return { remaining: body.remaining, resetAt: new Date(body.resetAt) };
+  return {
+    remaining: body.remaining,
+    limit: typeof body.limit === "number" ? body.limit : QUESTIONS_PER_WINDOW,
+    resetAt: new Date(body.resetAt),
+  };
 }
 
 export function formatResetAt(resetAt: Date): string {

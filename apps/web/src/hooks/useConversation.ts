@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   askAgent,
   fetchQuota,
+  QUESTIONS_PER_WINDOW,
   QuotaExceededError,
   type Quota,
   type Turn,
@@ -78,7 +79,11 @@ export function useConversation(enabled = true): Conversation {
           return;
         }
         if (cause instanceof QuotaExceededError) {
-          setQuota({ remaining: 0, resetAt: cause.resetAt });
+          setQuota((current) => ({
+            remaining: 0,
+            limit: current?.limit ?? QUESTIONS_PER_WINDOW,
+            resetAt: cause.resetAt,
+          }));
         }
         setError(cause instanceof Error ? cause.message : "The agent could not answer.");
       })

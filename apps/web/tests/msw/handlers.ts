@@ -10,7 +10,7 @@ export let adminUsers: Array<{
 export let answerDeltas: string[] = [];
 export let answerCitations: Array<{ title: string; url: string }> = [];
 export let answerGrounded = false;
-export let quota = { remaining: 60, resetAt: "2026-09-05T18:00:00.000Z" };
+export let quota = { remaining: 60, limit: 60, resetAt: "2026-09-05T18:00:00.000Z" };
 export let askedBodies: Array<{ turns: Array<{ role: string; content: string }> }> = [];
 
 export function setSession(next: typeof session) {

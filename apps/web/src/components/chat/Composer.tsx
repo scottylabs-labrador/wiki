@@ -1,15 +1,19 @@
 import { SendHorizontal } from "lucide-react";
 import { useState } from "react";
 
+import { QuotaBar } from "@/components/chat/QuotaBar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import type { Quota } from "@/lib/answerStream.ts";
 
 export function Composer({
   disabled,
   onAsk,
+  quota,
 }: {
   disabled: boolean;
   onAsk: (question: string) => void;
+  quota: Quota | null;
 }) {
   const [question, setQuestion] = useState("");
   const ready = !disabled && question.trim().length > 0;
@@ -33,6 +37,7 @@ export function Composer({
       <div className="mx-auto flex w-full max-w-3xl items-end gap-2">
         <Textarea
           aria-label="Your question"
+          className="min-h-9"
           placeholder="Ask a question about Labrador"
           rows={1}
           value={question}
@@ -45,10 +50,18 @@ export function Composer({
             }
           }}
         />
-        <Button type="submit" size="lg" disabled={!ready}>
-          <SendHorizontal aria-hidden />
-          Ask
-        </Button>
+        <div className="group relative flex flex-col items-stretch">
+          <Button
+            type="submit"
+            size="lg"
+            disabled={!ready}
+            className={quota ? "rounded-b-none" : undefined}
+          >
+            <SendHorizontal aria-hidden />
+            Ask
+          </Button>
+          {quota && <QuotaBar quota={quota} />}
+        </div>
       </div>
     </form>
   );

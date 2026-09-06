@@ -29,7 +29,7 @@ beforeEach(() => {
   setSession(null);
   setAdminUsers([]);
   setAnswerDeltas([]);
-  setQuota({ remaining: 60, resetAt: "2026-09-05T18:00:00.000Z" });
+  setQuota({ remaining: 60, limit: 60, resetAt: "2026-09-05T18:00:00.000Z" });
 });
 
 afterEach(() => {

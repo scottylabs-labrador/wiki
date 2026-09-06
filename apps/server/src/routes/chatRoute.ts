@@ -12,7 +12,7 @@ import {
   TooManyRequestsError,
 } from "../middlewares/errorHandler.ts";
 import { openAnswerStream, type Turn } from "../services/answerService.ts";
-import { consumeQuestion, peekQuota } from "../services/rateLimit.ts";
+import { consumeQuestion, peekQuota, QUESTIONS_PER_WINDOW } from "../services/rateLimit.ts";
 
 /** Where the browser posts a conversation to have the next Answer streamed back. */
 export const ANSWER_STREAM_PATH = "/chat/answers";
@@ -132,7 +132,11 @@ export async function readQuota(req: Request, res: Response) {
   }
 
   const quota = await peekQuota(userId);
-  res.status(200).json({ remaining: quota.remaining, resetAt: quota.resetAt.toISOString() });
+  res.status(200).json({
+    remaining: quota.remaining,
+    limit: QUESTIONS_PER_WINDOW,
+    resetAt: quota.resetAt.toISOString(),
+  });
 }
 
 /**

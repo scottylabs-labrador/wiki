@@ -425,6 +425,7 @@ describe(`GET ${QUOTA_PATH}`, () => {
 
     expect(res.status).toBe(200);
     expect(res.body.remaining).toBe(QUESTIONS_PER_WINDOW - 12);
+    expect(res.body.limit).toBe(QUESTIONS_PER_WINDOW);
     expect(typeof res.body.resetAt).toBe("string");
   });
 

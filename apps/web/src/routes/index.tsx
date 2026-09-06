@@ -48,7 +48,7 @@ function ChatComponent() {
           {formatResetAt(quota.resetAt)}.
         </p>
       )}
-      <Composer disabled={streaming || exhausted} onAsk={ask} />
+      <Composer disabled={streaming || exhausted} onAsk={ask} quota={quota} />
     </div>
   );
 }

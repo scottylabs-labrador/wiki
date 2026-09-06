@@ -307,9 +307,22 @@ describe("chat", () => {
     expect(screen.getByRole("link", { name: "https://example.com/Onboarding" })).toBeDefined();
   });
 
+  it("shows remaining questions under Ask, and the count and hourly refresh", async () => {
+    setSession(userSession());
+    setQuota({ remaining: 12, limit: 60, resetAt: "2026-09-05T18:00:00.000Z" });
+    await renderApp("/");
+
+    const bar = await screen.findByRole("progressbar", { name: /12\/60 prompts remaining/ });
+    expect(bar.getAttribute("aria-valuenow")).toBe("12");
+    expect(bar.getAttribute("aria-valuemax")).toBe("60");
+    expect((await screen.findByRole("tooltip")).textContent).toMatch(
+      /12\/60 prompts remaining\. Refreshes hourly at/,
+    );
+  });
+
   it("disables the composer when the hour's questions are used up", async () => {
     setSession(userSession());
-    setQuota({ remaining: 0, resetAt: "2026-09-05T18:00:00.000Z" });
+    setQuota({ remaining: 0, limit: 60, resetAt: "2026-09-05T18:00:00.000Z" });
     await renderApp("/");
 
     expect(await screen.findByText(/this hour allows/)).toBeDefined();

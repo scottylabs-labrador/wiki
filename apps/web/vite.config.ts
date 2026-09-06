@@ -21,8 +21,12 @@ export default defineConfig({
     tailwindcss(),
   ],
   resolve: {
-    alias: {
-      "@": fileURLToPath(new URL("./src", import.meta.url)),
-    },
+    alias: [
+      {
+        // `@/` is the app. A bare `@` alias would also swallow `@wiki/*`.
+        find: /^@\//,
+        replacement: `${fileURLToPath(new URL("./src", import.meta.url))}/`,
+      },
+    ],
   },
 });

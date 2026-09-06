@@ -2,6 +2,7 @@
   "name": "@wiki/corpus",
   "version": "0.0.0",
   "dependencies": {
+    "@wiki/common": "workspace:*",
     "@wiki/db": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "github-slugger": "^2.0.0",

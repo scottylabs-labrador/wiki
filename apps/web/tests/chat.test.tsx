@@ -37,8 +37,31 @@ describe("chat", () => {
     await renderApp("/");
 
     expect(await screen.findByLabelText("Your question")).toBeDefined();
-    expect(screen.queryByRole("complementary")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "History" })).toBeNull();
     expect(screen.queryByRole("heading", { name: "Labrador Wiki Agent" })).toBeNull();
+  });
+
+  it("lists the Sources the agent answers from as Useful Links", async () => {
+    await renderApp("/");
+
+    const sidebar = await screen.findByRole("complementary", { name: "Useful Links" });
+    const links = within(sidebar)
+      .getAllByRole("link")
+      .map((link) => ({ name: link.textContent, href: link.getAttribute("href") }));
+    expect(links).toEqual([
+      {
+        name: "Labrador Wiki",
+        href: "https://github.com/scottylabs-labrador/wiki/wiki",
+      },
+      {
+        name: "ScottyStack Wiki",
+        href: "https://github.com/scottylabs-labrador/ScottyStack/wiki",
+      },
+      {
+        name: "Goldador",
+        href: "https://scottylabs-labrador.github.io/goldador/",
+      },
+    ]);
   });
 
   it("renders a streamed Answer as markdown", async () => {
@@ -195,7 +218,7 @@ describe("chat", () => {
     await ask("What is the weather?");
 
     expect(
-      await screen.findByText("This Answer is not drawn from Labrador documentation."),
+      await screen.findByText("This answer is not drawn from Labrador documentation!"),
     ).toBeDefined();
     expect(screen.queryByRole("link", { name: "Auth" })).toBeNull();
   });

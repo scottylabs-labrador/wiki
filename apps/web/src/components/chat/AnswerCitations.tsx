@@ -7,7 +7,7 @@ export function AnswerCitations({ citations }: { citations: Citation[] }) {
 
   return (
     <nav aria-label="Citations" className="mt-3">
-      <p className="text-xs font-medium text-muted-foreground">Drawn from</p>
+      <p className="text-xs font-medium text-muted-foreground">Cited Documents</p>
       <ul className="mt-1 flex flex-col gap-1">
         {citations.map((citation) => (
           <li key={citation.url}>
@@ -41,7 +41,7 @@ export function ConsultingPages({ citations }: { citations: Citation[] }) {
 export function UngroundedNotice() {
   return (
     <p role="status" className="mt-3 text-sm text-muted-foreground">
-      This Answer is not drawn from Labrador documentation.
+      This answer is not drawn from Labrador documentation!
     </p>
   );
 }

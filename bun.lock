@@ -88,6 +88,7 @@
         "@tanstack/react-router": "^1.166.3",
         "@tanstack/router-plugin": "^1.166.3",
         "@wiki/access-control": "workspace:*",
+        "@wiki/common": "workspace:*",
         "@wiki/server": "workspace:*",
         "better-auth": "^1.6.26",
         "class-variance-authority": "^0.7.1",
@@ -152,6 +153,7 @@
       "name": "@wiki/corpus",
       "version": "0.0.0",
       "dependencies": {
+        "@wiki/common": "workspace:*",
         "@wiki/db": "workspace:*",
         "drizzle-orm": "^0.45.2",
         "github-slugger": "^2.0.0",

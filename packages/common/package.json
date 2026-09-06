@@ -1,6 +1,10 @@
 {
   "name": "@wiki/common",
   "version": "0.0.0",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "main": "src/index.ts",
+  "private": true,
   "type": "module"
 }

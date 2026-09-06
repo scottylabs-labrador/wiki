@@ -14,5 +14,5 @@ export {
   type SourcePage,
 } from "./ingestService.ts";
 export { retrieve, type RetrievedChunk } from "./retrieve.ts";
-export { goldadorPage, labradorWiki, sources } from "./sources.ts";
-export { pageUrl, scottyStackWiki, SOURCE_ID } from "./scottyStackWiki.ts";
+export { goldadorPage, labradorWiki, scottyStackWiki, sources } from "./sources.ts";
+export { pageUrl, SOURCE_ID } from "./scottyStackWiki.ts";

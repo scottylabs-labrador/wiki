@@ -50,7 +50,13 @@ export function Composer({
             }
           }}
         />
-        <div className="group relative flex flex-col items-stretch">
+        <div
+          className="group relative flex flex-col items-stretch select-none"
+          onContextMenu={(event) => {
+            // A long-press would otherwise open the browser menu instead of the quota.
+            event.preventDefault();
+          }}
+        >
           <Button
             type="submit"
             size="lg"

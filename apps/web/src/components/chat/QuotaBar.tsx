@@ -1,6 +1,6 @@
 import { formatResetAt, type Quota } from "@/lib/answerStream.ts";
 
-/** Remaining questions this hour, as a bar under Ask. Hover names the count and reset. */
+/** Remaining questions this hour, as a bar under Ask. Hover or a press names the count and reset. */
 export function QuotaBar({ quota }: { quota: Quota }) {
   const label = `${quota.remaining}/${quota.limit} prompts remaining. Refreshes hourly at ${formatResetAt(quota.resetAt)}.`;
   const remaining = quota.limit === 0 ? 0 : Math.min(1, Math.max(0, quota.remaining / quota.limit));
@@ -20,7 +20,7 @@ export function QuotaBar({ quota }: { quota: Quota }) {
       </div>
       <p
         role="tooltip"
-        className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1 hidden -translate-x-1/2 rounded-md bg-foreground px-2 py-1 text-xs whitespace-nowrap text-background group-hover:block group-focus-within:block"
+        className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1 hidden -translate-x-1/2 rounded-md bg-foreground px-2 py-1 text-xs whitespace-nowrap text-background group-hover:block group-focus-within:block group-active:block"
       >
         {label}
       </p>

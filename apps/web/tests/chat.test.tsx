@@ -36,6 +36,7 @@ describe("chat", () => {
     expect(screen.queryByLabelText("Your question")).toBeNull();
     expect(screen.queryByRole("button", { name: "Ask" })).toBeNull();
     expect(screen.queryByRole("complementary", { name: "Useful Links" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Useful Links" })).toBeNull();
   });
 
   it("offers a composer to a signed-in member and has no history list", async () => {
@@ -82,6 +83,23 @@ describe("chat", () => {
     expect(sidebar.textContent).toMatch(
       /Slack Yuxiang Huang if you have any questions or feedback\./,
     );
+  });
+
+  it("opens Useful Links from the navbar menu", async () => {
+    setSession(userSession());
+    await renderApp("/");
+
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Useful Links" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Useful Links" });
+    expect(within(dialog).getByRole("link", { name: "Slack" }).getAttribute("href")).toBe(
+      "https://go.scottylabs.org/slack",
+    );
+    expect(within(dialog).getByRole("link", { name: "ScottyStack Wiki" })).toBeDefined();
+
+    await user.click(screen.getByRole("button", { name: "Close useful links" }));
+    expect(screen.queryByRole("dialog", { name: "Useful Links" })).toBeNull();
   });
 
   it("renders a streamed Answer as markdown", async () => {

@@ -7,6 +7,12 @@ export let adminUsers: Array<{
   id: string;
   name: string;
 }> = [];
+export let adminPages: Array<{
+  sourceTitle: string;
+  filename: string;
+  publicUrl: string;
+  chunks: Array<{ heading: string | null; body: string }>;
+}> = [];
 export let answerDeltas: string[] = [];
 export let answerCitations: Array<{ title: string; url: string }> = [];
 export let answerGrounded = false;
@@ -19,6 +25,10 @@ export function setSession(next: typeof session) {
 
 export function setAdminUsers(next: typeof adminUsers) {
   adminUsers = next;
+}
+
+export function setAdminPages(next: typeof adminPages) {
+  adminPages = next;
 }
 
 export function setQuota(next: typeof quota) {
@@ -86,6 +96,9 @@ export const handlers = [
   }),
   http.get(`${API_URL}/admin/users`, () => {
     return HttpResponse.json(adminUsers);
+  }),
+  http.get(`${API_URL}/admin/pages`, () => {
+    return HttpResponse.json(adminPages);
   }),
   http.get(`${API_URL}/chat/quota`, () => {
     if (!session) {

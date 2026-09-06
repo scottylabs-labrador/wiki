@@ -1,7 +1,13 @@
 import { cleanup } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, beforeEach, vi } from "vitest";
 
-import { setAdminUsers, setAnswerDeltas, setQuota, setSession } from "./msw/handlers.ts";
+import {
+  setAdminPages,
+  setAdminUsers,
+  setAnswerDeltas,
+  setQuota,
+  setSession,
+} from "./msw/handlers.ts";
 import { server } from "./msw/server.ts";
 
 vi.mock("posthog-js/react", () => ({
@@ -28,6 +34,7 @@ beforeAll(() => {
 beforeEach(() => {
   setSession(null);
   setAdminUsers([]);
+  setAdminPages([]);
   setAnswerDeltas([]);
   setQuota({ remaining: 60, limit: 60, resetAt: "2026-09-05T18:00:00.000Z" });
 });

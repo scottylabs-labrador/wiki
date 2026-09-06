@@ -31,4 +31,7 @@ test("an admin can open the dashboard and see users", async ({ page, context }) 
   await expect(page.getByRole("heading", { name: "Admin Dashboard" })).toBeVisible();
   await expect(page.getByRole("cell", { name: "Alice", exact: true })).toBeVisible();
   await expect(page.getByRole("cell", { name: "alice", exact: true })).toBeVisible();
+
+  await page.getByRole("tab", { name: "Chunks" }).click();
+  await expect(page.getByText("Chunks grouped by Source and Page.")).toBeVisible();
 });

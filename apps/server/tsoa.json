@@ -5,6 +5,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
+      "@wiki/common": ["../../packages/common/src/index.ts"],
       "@wiki/db": ["../../packages/db/src/index.ts"],
       "@wiki/db/*": ["../../packages/db/src/*"]
     }

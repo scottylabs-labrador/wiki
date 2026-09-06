@@ -117,6 +117,18 @@ describe("ingest", () => {
     expect(source.clones).toBe(1);
   });
 
+  it("rebuilds an unchanged Source when the stale check is bypassed", async () => {
+    const source = fakeSource({ sha: "abc123", pages: { "Auth.md": "## Auth\n\nKeycloak." } });
+    const embedder = fakeEmbedder();
+
+    await ingest({ db: testDb, source, embedder });
+    const outcome = await ingest({ db: testDb, source, embedder, bypassStaleCheck: true });
+
+    expect(outcome.unchanged).toBe(false);
+    expect(embedder.embedded).toBe(2);
+    expect(source.clones).toBe(2);
+  });
+
   it("rebuilds when the same commit is chunked or embedded differently", async () => {
     const source = fakeSource({ sha: "abc123", pages: { "Auth.md": "## Auth\n\nKeycloak." } });
 

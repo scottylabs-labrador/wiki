@@ -23,6 +23,7 @@ async function main() {
         apiKey: env.OPENROUTER_API_KEY,
         model: env.OPENROUTER_EMBEDDING_MODEL,
       }),
+      bypassStaleCheck: env.INGEST_BYPASS_STALE_CHECK,
     });
 
     for (const outcome of outcomes) {

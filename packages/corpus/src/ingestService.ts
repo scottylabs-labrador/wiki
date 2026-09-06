@@ -50,7 +50,8 @@ export interface IngestOutcome {
  *
  * Nothing is embedded or written when the Source's commit, the embedding model
  * and the chunker all match the last completed run, because a nightly schedule
- * calls this whether or not anything moved upstream.
+ * calls this whether or not anything moved upstream. `bypassStaleCheck` skips
+ * that fingerprint and rebuilds anyway.
  *
  * Embedding happens before the write and the write happens in one transaction,
  * so a failure at any point leaves the previous Corpus exactly as it was.
@@ -59,10 +60,13 @@ export async function ingest({
   db,
   source,
   embedder,
+  bypassStaleCheck = false,
 }: {
   db: CorpusDatabase;
   source: Source;
   embedder: Embedder;
+  /** Rebuild even when the fingerprint matches the last completed run. */
+  bypassStaleCheck?: boolean;
 }): Promise<IngestOutcome> {
   const upstreamSha = await source.headSha();
   const fingerprint = {
@@ -77,6 +81,7 @@ export async function ingest({
     .where(eq(sourceIngestTable.sourceId, source.id));
 
   if (
+    !bypassStaleCheck &&
     previous?.upstreamSha === fingerprint.upstreamSha &&
     previous.embeddingModel === fingerprint.embeddingModel &&
     previous.chunkerVersion === fingerprint.chunkerVersion
@@ -158,17 +163,19 @@ export async function ingestAll({
   db,
   sources,
   embedder,
+  bypassStaleCheck = false,
 }: {
   db: CorpusDatabase;
   sources: Source[];
   embedder: Embedder;
+  bypassStaleCheck?: boolean;
 }): Promise<{ outcomes: IngestOutcome[]; failures: Array<{ sourceId: string; error: unknown }> }> {
   const outcomes: IngestOutcome[] = [];
   const failures: Array<{ sourceId: string; error: unknown }> = [];
 
   for (const source of sources) {
     try {
-      outcomes.push(await ingest({ db, source, embedder }));
+      outcomes.push(await ingest({ db, source, embedder, bypassStaleCheck }));
     } catch (error) {
       failures.push({ sourceId: source.id, error });
     }

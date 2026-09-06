@@ -7,6 +7,11 @@ const envSchema = z.object({
   DATABASE_URL: z.string(),
   OPENROUTER_API_KEY: z.string(),
   OPENROUTER_EMBEDDING_MODEL: z.string().default("openai/text-embedding-3-small"),
+  /** Rebuild even when the Source fingerprint matches the last completed run. */
+  INGEST_BYPASS_STALE_CHECK: z.preprocess(
+    (value) => (value === "true" ? true : value === "false" ? false : value),
+    z.boolean().default(false),
+  ),
 });
 
 const env = envSchema.parse(process.env);

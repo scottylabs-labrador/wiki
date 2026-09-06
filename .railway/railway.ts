@@ -117,6 +117,9 @@ export default defineRailway(() => {
       DATABASE_URL: "${{Postgres.DATABASE_URL}}",
       OPENROUTER_API_KEY: preserve(),
       OPENROUTER_EMBEDDING_MODEL: "openai/text-embedding-3-small",
+      // One-shot rebuild when the fingerprint is stale for a reason the check
+      // cannot see. Leave false so the nightly cron stays a no-op on a quiet night.
+      INGEST_BYPASS_STALE_CHECK: "false",
     },
   });
 

@@ -20,6 +20,11 @@ async function ask(question: string) {
   await user.click(screen.getByRole("button", { name: "Ask" }));
 }
 
+async function expandCitedDocuments(index = 0) {
+  const user = userEvent.setup();
+  await user.click(screen.getAllByText("Cited Documents")[index]!);
+}
+
 describe("chat", () => {
   it("explains the agent to a signed-out visitor instead of offering a composer", async () => {
     await renderApp("/");
@@ -205,7 +210,14 @@ describe("chat", () => {
 
     await ask("How do members sign in?");
 
-    const citation = await screen.findByRole("link", {
+    expect(await screen.findByText("Cited Documents")).toBeDefined();
+    expect(
+      screen.queryByRole("link", { name: "https://github.com/example/wiki/Auth#keycloak" }),
+    ).toBeNull();
+
+    await expandCitedDocuments();
+
+    const citation = screen.getByRole("link", {
       name: "https://github.com/example/wiki/Auth#keycloak",
     });
     expect(citation.getAttribute("href")).toBe("https://github.com/example/wiki/Auth#keycloak");
@@ -243,6 +255,10 @@ describe("chat", () => {
     await waitFor(() => {
       expect(screen.getByText("Keycloak.")).toBeDefined();
     });
+    expect(screen.getByText("Cited Documents")).toBeDefined();
+    expect(screen.queryByRole("link", { name: "https://example.com/Auth" })).toBeNull();
+
+    await expandCitedDocuments();
     expect(screen.getByRole("link", { name: "https://example.com/Auth" })).toBeDefined();
   });
 
@@ -253,7 +269,9 @@ describe("chat", () => {
     await renderApp("/");
 
     await ask("How do members sign in?");
-    expect(await screen.findByRole("link", { name: "https://example.com/Auth" })).toBeDefined();
+    expect(await screen.findByText("Cited Documents")).toBeDefined();
+    await expandCitedDocuments();
+    expect(screen.getByRole("link", { name: "https://example.com/Auth" })).toBeDefined();
 
     setAnswerDeltas(["Members."]);
     setAnswerCitations([{ title: "Onboarding", url: "https://example.com/Onboarding" }]);
@@ -268,8 +286,12 @@ describe("chat", () => {
 
     release();
     await waitFor(() => {
-      expect(screen.getByRole("link", { name: "https://example.com/Onboarding" })).toBeDefined();
+      expect(screen.getAllByText("Cited Documents")).toHaveLength(2);
     });
+    expect(screen.queryByRole("link", { name: "https://example.com/Onboarding" })).toBeNull();
+
+    await expandCitedDocuments(1);
+    expect(screen.getByRole("link", { name: "https://example.com/Onboarding" })).toBeDefined();
   });
 
   it("disables the composer when the hour's questions are used up", async () => {

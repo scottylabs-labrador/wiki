@@ -30,6 +30,7 @@ describe("chat", () => {
     expect(within(screen.getByRole("main")).getByRole("button", { name: "Sign In" })).toBeDefined();
     expect(screen.queryByLabelText("Your question")).toBeNull();
     expect(screen.queryByRole("button", { name: "Ask" })).toBeNull();
+    expect(screen.queryByRole("complementary", { name: "Useful Links" })).toBeNull();
   });
 
   it("offers a composer to a signed-in member and has no history list", async () => {
@@ -42,6 +43,7 @@ describe("chat", () => {
   });
 
   it("lists the Sources the agent answers from as Useful Links", async () => {
+    setSession(userSession());
     await renderApp("/");
 
     const sidebar = await screen.findByRole("complementary", { name: "Useful Links" });

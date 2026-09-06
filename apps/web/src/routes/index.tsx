@@ -32,15 +32,18 @@ function ChatComponent() {
   const exhausted = quota?.remaining === 0;
 
   return (
-    <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col">
+    <div className="flex min-h-0 w-full flex-1 flex-col">
       <ConversationTranscript turns={turns} streaming={streaming} />
       {error && (
-        <p role="alert" className="px-6 pb-2 text-sm text-destructive">
+        <p role="alert" className="mx-auto w-full max-w-3xl px-6 pb-2 text-sm text-destructive">
           {error}
         </p>
       )}
       {exhausted && quota && (
-        <p role="status" className="px-6 pb-2 text-sm text-muted-foreground">
+        <p
+          role="status"
+          className="mx-auto w-full max-w-3xl px-6 pb-2 text-sm text-muted-foreground"
+        >
           You have asked as many questions as this hour allows. You can ask again at{" "}
           {formatResetAt(quota.resetAt)}.
         </p>

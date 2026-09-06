@@ -24,30 +24,32 @@ export function Composer({
 
   return (
     <form
-      className="sticky bottom-0 z-40 flex shrink-0 items-end gap-2 border-t border-border bg-background p-4"
+      className="sticky bottom-0 z-40 shrink-0 border-t border-border bg-background p-4"
       onSubmit={(event) => {
         event.preventDefault();
         submit();
       }}
     >
-      <Textarea
-        aria-label="Your question"
-        placeholder="Ask a question about Labrador"
-        rows={1}
-        value={question}
-        onChange={(event) => setQuestion(event.target.value)}
-        onKeyDown={(event) => {
-          // Enter asks; shift-enter is how you write a multi-line question.
-          if (event.key === "Enter" && !event.shiftKey) {
-            event.preventDefault();
-            submit();
-          }
-        }}
-      />
-      <Button type="submit" size="lg" disabled={!ready}>
-        <SendHorizontal aria-hidden />
-        Ask
-      </Button>
+      <div className="mx-auto flex w-full max-w-3xl items-end gap-2">
+        <Textarea
+          aria-label="Your question"
+          placeholder="Ask a question about Labrador"
+          rows={1}
+          value={question}
+          onChange={(event) => setQuestion(event.target.value)}
+          onKeyDown={(event) => {
+            // Enter asks; shift-enter is how you write a multi-line question.
+            if (event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault();
+              submit();
+            }
+          }}
+        />
+        <Button type="submit" size="lg" disabled={!ready}>
+          <SendHorizontal aria-hidden />
+          Ask
+        </Button>
+      </div>
     </form>
   );
 }

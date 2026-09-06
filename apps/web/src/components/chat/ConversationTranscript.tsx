@@ -25,8 +25,8 @@ export function ConversationTranscript({
   if (turns.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center p-6">
-        <p className="max-w-md text-center text-sm text-muted-foreground">
-          Ask anything about ScottyLabs Labrador. Nothing here is saved, so reloading the page
+        <p className="max-w-md text-center text-base text-muted-foreground">
+          Ask anything about ScottyLabs Labrador. Note that nothing is saved, so reloading the page
           starts a new conversation.
         </p>
       </div>

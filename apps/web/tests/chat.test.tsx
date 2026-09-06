@@ -24,10 +24,8 @@ describe("chat", () => {
   it("explains the agent to a signed-out visitor instead of offering a composer", async () => {
     await renderApp("/");
 
-    expect(
-      await screen.findByRole("heading", { name: "Ask the Labrador wiki agent" }),
-    ).toBeDefined();
-    expect(screen.getByText(/answers questions about ScottyLabs Labrador/)).toBeDefined();
+    expect(await screen.findByRole("heading", { name: "Labrador Wiki Agent" })).toBeDefined();
+    expect(screen.getByText(/Sign in with your Andrew ID to ask a question/)).toBeDefined();
     // The navbar has a sign-in button of its own, so look inside the page.
     expect(within(screen.getByRole("main")).getByRole("button", { name: "Sign In" })).toBeDefined();
     expect(screen.queryByLabelText("Your question")).toBeNull();
@@ -40,7 +38,7 @@ describe("chat", () => {
 
     expect(await screen.findByLabelText("Your question")).toBeDefined();
     expect(screen.queryByRole("complementary")).toBeNull();
-    expect(screen.queryByRole("heading", { name: "Ask the Labrador wiki agent" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Labrador Wiki Agent" })).toBeNull();
   });
 
   it("renders a streamed Answer as markdown", async () => {

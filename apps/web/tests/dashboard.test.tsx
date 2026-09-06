@@ -9,9 +9,7 @@ describe("dashboard", () => {
   it("redirects guests home", async () => {
     await renderApp("/dashboard");
 
-    expect(
-      await screen.findByRole("heading", { name: "Ask the Labrador wiki agent" }),
-    ).toBeDefined();
+    expect(await screen.findByRole("heading", { name: "Labrador Wiki Agent" })).toBeDefined();
   });
 
   it("shows the user table for an admin", async () => {

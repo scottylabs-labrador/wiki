@@ -17,7 +17,7 @@ test("a guest can see the app shell", async ({ page }) => {
   await expect(nav.getByText("Wiki")).toBeVisible();
 
   const main = page.getByRole("main");
-  await expect(main.getByRole("heading", { name: "Ask the Labrador wiki agent" })).toBeVisible();
+  await expect(main.getByRole("heading", { name: "Labrador Wiki Agent" })).toBeVisible();
   await expect(main.getByRole("button", { name: "Sign In" })).toBeVisible();
   await expect(main.getByLabel("Your question")).toBeHidden();
 });

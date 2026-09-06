@@ -31,7 +31,7 @@ export const scottyStackWikiSource = {
 export const labradorWikiSource = {
   kind: "git-wiki",
   id: "labrador-wiki",
-  title: "Labrador Wiki",
+  title: "Labrador Wiki Wiki",
   url: "https://github.com/scottylabs-labrador/wiki/wiki",
   cloneUrl: "https://github.com/scottylabs-labrador/wiki.wiki.git",
 } as const satisfies SourceCatalogEntry;

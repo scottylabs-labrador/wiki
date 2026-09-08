@@ -49,5 +49,8 @@
   },
   "[html]": {
     "editor.defaultFormatter": "oxc.oxc-vscode"
+  },
+  "[toml]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
   }
 }

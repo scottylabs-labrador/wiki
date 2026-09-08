@@ -61,11 +61,29 @@ export function questionFromMention(text: string): string {
 }
 
 export function formatSlackAnswer(text: string, citations: Citation[]): string {
+  const body = markdownLinksToSlack(text);
   if (citations.length === 0) {
-    return text;
+    return body;
   }
   const links = citations.map((citation) => `<${citation.url}|${citation.title}>`).join("\n");
-  return `${text}\n\n${links}`;
+  return `${body}\n\n${links}`;
+}
+
+/**
+ * Turns GitHub-flavoured markdown links into Slack mrkdwn. Code is left alone
+ * so a sample `[text](url)` stays a sample. Slack's API does not understand
+ * `[text](url)`, only `<url|text>`.
+ */
+function markdownLinksToSlack(text: string): string {
+  return text.replace(
+    /```[\s\S]*?```|`[^`]*`|!?\[([^\]]*)\]\((https?:\/\/[^\s)]+)(?:\s+(?:"[^"]*"|'[^']*'))?\)/g,
+    (match, label: string | undefined, url: string | undefined) => {
+      if (url === undefined || match.startsWith("![")) {
+        return match;
+      }
+      return `<${url}|${label}>`;
+    },
+  );
 }
 
 async function flipReaction(mention: SlackMention, name: string): Promise<void> {

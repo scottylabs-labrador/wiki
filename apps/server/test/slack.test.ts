@@ -14,6 +14,7 @@ import {
   FAILED_REACTION,
   GROUNDED_REACTION,
   UNGROUNDED_REACTION,
+  formatSlackAnswer,
 } from "../src/services/slackAsk.ts";
 import { embedByText } from "./embedderState.ts";
 import { testDb } from "./harness.ts";
@@ -246,7 +247,12 @@ describe(`POST ${SLACK_EVENTS_PATH}`, () => {
       anchor: "keycloak",
       publicUrl: "https://wiki.example.com/Auth",
     });
-    fakeNetwork({ answer: () => deltaStream(["Use ", "Keycloak."]) });
+    fakeNetwork({
+      answer: () =>
+        deltaStream([
+          "Use [Keycloak](https://wiki.example.com/Auth#keycloak) via [this link](https://github.com/example/ScottyStack).",
+        ]),
+    });
 
     const res = await postEvent(
       mention({ text: "<@U0BOT> What does ScottyStack use for authentication?" }),
@@ -255,7 +261,9 @@ describe(`POST ${SLACK_EVENTS_PATH}`, () => {
     expect(res.status).toBe(200);
     await waitForDelivery();
 
-    expect(postedText()).toBe("Use Keycloak.\n\n<https://wiki.example.com/Auth#keycloak|Auth>");
+    expect(postedText()).toBe(
+      "Use <https://wiki.example.com/Auth#keycloak|Keycloak> via <https://github.com/example/ScottyStack|this link>.\n\n<https://wiki.example.com/Auth#keycloak|Auth>",
+    );
     expect(outcomeReaction()).toBe(GROUNDED_REACTION);
     expect(slackCalls.some((call) => call.method === "reactions.remove")).toBe(true);
     expect(sent[0]?.messages.slice(1)).toEqual([
@@ -338,5 +346,26 @@ describe(`POST ${SLACK_EVENTS_PATH}`, () => {
     expect(res.status).toBe(200);
     expect(sent).toEqual([]);
     expect(slackCalls).toEqual([]);
+  });
+});
+
+describe("formatSlackAnswer", () => {
+  it("turns markdown links into Slack links and appends Citation titles", () => {
+    expect(
+      formatSlackAnswer("Use it via [this link](https://github.com/example/ScottyStack).", [
+        { title: "Quickstart", url: "https://wiki.example.com/Quickstart#template" },
+      ]),
+    ).toBe(
+      "Use it via <https://github.com/example/ScottyStack|this link>.\n\n<https://wiki.example.com/Quickstart#template|Quickstart>",
+    );
+  });
+
+  it("leaves markdown links inside code alone", () => {
+    expect(
+      formatSlackAnswer(
+        "Write `[docs](https://example.com)` or:\n\n```\n[docs](https://example.com)\n```",
+        [],
+      ),
+    ).toBe("Write `[docs](https://example.com)` or:\n\n```\n[docs](https://example.com)\n```");
   });
 });

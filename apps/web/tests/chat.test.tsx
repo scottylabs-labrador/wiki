@@ -115,10 +115,9 @@ describe("chat", () => {
     await waitFor(() => {
       expect(screen.getByText("web apps").tagName).toBe("STRONG");
     });
-    // A URL the model wrote keeps its words but is not clickable: only the
-    // Citations the server computes may ever be links.
-    expect(screen.getByText("wiki")).toBeDefined();
-    expect(within(screen.getByRole("main")).queryByRole("link")).toBeNull();
+    const wiki = within(screen.getByRole("main")).getByRole("link", { name: "wiki" });
+    expect(wiki.getAttribute("href")).toBe("https://example.org");
+    expect(wiki.getAttribute("target")).toBe("_blank");
   });
 
   it("renders the GitHub-flavoured markdown the model is asked for", async () => {
@@ -245,16 +244,13 @@ describe("chat", () => {
     await ask("How do members sign in?");
 
     expect(await screen.findByText("Cited Documents")).toBeDefined();
-    expect(
-      screen.queryByRole("link", { name: "https://github.com/example/wiki/Auth#keycloak" }),
-    ).toBeNull();
+    expect(screen.queryByRole("link", { name: "Auth" })).toBeNull();
 
     await expandCitedDocuments();
 
-    const citation = screen.getByRole("link", {
-      name: "https://github.com/example/wiki/Auth#keycloak",
-    });
+    const citation = screen.getByRole("link", { name: "Auth" });
     expect(citation.getAttribute("href")).toBe("https://github.com/example/wiki/Auth#keycloak");
+    expect(citation.textContent).not.toContain("https://");
   });
 
   it("says so when the Answer is not drawn from Labrador documentation", async () => {
@@ -290,10 +286,12 @@ describe("chat", () => {
       expect(screen.getByText("Keycloak.")).toBeDefined();
     });
     expect(screen.getByText("Cited Documents")).toBeDefined();
-    expect(screen.queryByRole("link", { name: "https://example.com/Auth" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Auth" })).toBeNull();
 
     await expandCitedDocuments();
-    expect(screen.getByRole("link", { name: "https://example.com/Auth" })).toBeDefined();
+    expect(screen.getByRole("link", { name: "Auth" }).getAttribute("href")).toBe(
+      "https://example.com/Auth",
+    );
   });
 
   it("keeps Citations on finished Answers while a later Answer is still being written", async () => {
@@ -305,7 +303,7 @@ describe("chat", () => {
     await ask("How do members sign in?");
     expect(await screen.findByText("Cited Documents")).toBeDefined();
     await expandCitedDocuments();
-    expect(screen.getByRole("link", { name: "https://example.com/Auth" })).toBeDefined();
+    expect(screen.getByRole("link", { name: "Auth" })).toBeDefined();
 
     setAnswerDeltas(["Members."]);
     setAnswerCitations([{ title: "Onboarding", url: "https://example.com/Onboarding" }]);
@@ -315,17 +313,19 @@ describe("chat", () => {
     await waitFor(() => {
       expect(screen.getByText(/Looking at Onboarding/)).toBeDefined();
     });
-    expect(screen.getByRole("link", { name: "https://example.com/Auth" })).toBeDefined();
-    expect(screen.queryByRole("link", { name: "https://example.com/Onboarding" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Auth" })).toBeDefined();
+    expect(screen.queryByRole("link", { name: "Onboarding" })).toBeNull();
 
     release();
     await waitFor(() => {
       expect(screen.getAllByText("Cited Documents")).toHaveLength(2);
     });
-    expect(screen.queryByRole("link", { name: "https://example.com/Onboarding" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Onboarding" })).toBeNull();
 
     await expandCitedDocuments(1);
-    expect(screen.getByRole("link", { name: "https://example.com/Onboarding" })).toBeDefined();
+    expect(screen.getByRole("link", { name: "Onboarding" }).getAttribute("href")).toBe(
+      "https://example.com/Onboarding",
+    );
   });
 
   it("shows remaining questions under Ask, and the count and hourly refresh", async () => {

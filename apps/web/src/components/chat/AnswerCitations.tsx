@@ -23,11 +23,12 @@ export function AnswerCitations({ citations }: { citations: Citation[] }) {
               <li key={citation.url}>
                 <a
                   href={citation.url}
-                  target="_blank"
                   rel="noreferrer"
-                  className="text-xs text-blue-600 underline underline-offset-4 break-all dark:text-blue-400"
+                  target="_blank"
+                  title={citation.url}
+                  className="text-xs text-blue-600 underline underline-offset-4 break-words dark:text-blue-400"
                 >
-                  {citation.url}
+                  {citation.title}
                 </a>
               </li>
             ))}

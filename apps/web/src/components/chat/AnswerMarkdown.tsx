@@ -64,15 +64,22 @@ const ANSWER_PROSE = [
   "[&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-muted [&_pre]:p-3",
   "[&_pre_code]:bg-transparent [&_pre_code]:p-0",
   "[&_table]:w-full [&_table]:text-left [&_th]:font-medium",
+  "[&_a]:text-blue-600 [&_a]:underline [&_a]:underline-offset-4 dark:[&_a]:text-blue-400",
 ].join(" ");
 
 const ANSWER_COMPONENTS: Components = {
-  a({ node: _node, href: _href, children, ...props }) {
-    // Nothing the model writes is ever clickable. Only Citations, which the
-    // server computes from the Chunks retrieval returned, may be links: a model
-    // invents plausible URLs, and a wrong link in an answer about committee
-    // governance is worse than no link at all. See ADR-0002.
-    return <span {...props}>{children}</span>;
+  a({ node: _node, href, children }) {
+    // Citations stay server-computed (ADR-0002). Inline http(s) links that
+    // survive the sanitiser are rendered so a phrase like "this link" is
+    // actually a link.
+    if (!href) {
+      return <span>{children}</span>;
+    }
+    return (
+      <a href={href} rel="noreferrer" target="_blank">
+        {children}
+      </a>
+    );
   },
 };
 

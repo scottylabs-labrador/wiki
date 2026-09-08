@@ -23,6 +23,7 @@ export async function deliverSlackAsk(mention: SlackMention): Promise<void> {
   try {
     await addReaction(mention, ACK_REACTION);
   } catch (error) {
+    console.error("Slack ack reaction failed", error);
     captureUnexpectedError(error);
   }
 
@@ -39,14 +40,17 @@ export async function deliverSlackAsk(mention: SlackMention): Promise<void> {
     try {
       await flipReaction(mention, answer.grounded ? GROUNDED_REACTION : UNGROUNDED_REACTION);
     } catch (error) {
+      console.error("Slack outcome reaction failed", error);
       captureUnexpectedError(error);
     }
   } catch (error) {
+    console.error("Slack Ask failed", error);
     captureUnexpectedError(error);
     try {
       await postThreadReply(mention, CANNOT_PRODUCE_TEXT);
       await flipReaction(mention, FAILED_REACTION);
     } catch (deliveryError) {
+      console.error("Slack cannot-produce delivery failed", deliveryError);
       captureUnexpectedError(deliveryError);
     }
   }

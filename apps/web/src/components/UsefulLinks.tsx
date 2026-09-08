@@ -128,7 +128,16 @@ function UsefulLinksItems() {
         >
           Slack
         </a>{" "}
-        Yuxiang Huang if you have any questions or feedback.
+        in{" "}
+        <a
+          href="https://scottylabs.slack.com/archives/C0BV6TCDEAJ"
+          target="_blank"
+          rel="noreferrer"
+          className="text-blue-600 underline underline-offset-4 dark:text-blue-400"
+        >
+          #labrador-wiki
+        </a>{" "}
+        if you have any questions or feedback.
       </p>
     </>
   );

@@ -72,7 +72,7 @@ describe("chat", () => {
     ]);
   });
 
-  it("asks a member to Slack Yuxiang Huang with questions or feedback", async () => {
+  it("asks a member to Slack in #labrador-wiki with questions or feedback", async () => {
     setSession(userSession());
     await renderApp("/");
 
@@ -80,8 +80,11 @@ describe("chat", () => {
     expect(within(sidebar).getByRole("link", { name: "Slack" }).getAttribute("href")).toBe(
       "https://go.scottylabs.org/slack",
     );
+    expect(within(sidebar).getByRole("link", { name: "#labrador-wiki" }).getAttribute("href")).toBe(
+      "https://scottylabs.slack.com/archives/C0BV6TCDEAJ",
+    );
     expect(sidebar.textContent).toMatch(
-      /Slack Yuxiang Huang if you have any questions or feedback\./,
+      /Slack in #labrador-wiki if you have any questions or feedback\./,
     );
   });
 

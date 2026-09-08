@@ -1,11 +1,15 @@
 import { chunk as chunkTable, page as pageTable } from "@wiki/db/schema";
 import { cosineDistance, eq } from "drizzle-orm";
 
+import { bm25IndexFor, bm25Ranks } from "./bm25.ts";
 import type { Embedder } from "./embeddings.ts";
 import type { CorpusDatabase } from "./ingestService.ts";
 
 /** Nearest neighbours only: stuffing the whole Corpus is what ADR-0001 rejected. */
 const MAX_CHUNKS = 8;
+
+/** Reciprocal Rank Fusion constant. See ADR-0005. */
+const RRF_K = 60;
 
 /** A stored Chunk, with the Page identity a later Citation can deep-link. */
 export interface RetrievedChunk {
@@ -18,10 +22,30 @@ export interface RetrievedChunk {
   similarity: number;
 }
 
+interface RankedChunk extends RetrievedChunk {
+  id: string;
+}
+
+function cosineRanks(chunks: RankedChunk[]): Map<string, number> {
+  const ordered = [...chunks].sort(
+    (left, right) => right.similarity - left.similarity || left.id.localeCompare(right.id),
+  );
+  const ranks = new Map<string, number>();
+  for (const [offset, chunk] of ordered.entries()) {
+    ranks.set(chunk.id, offset + 1);
+  }
+  return ranks;
+}
+
+function rrfScore(cosineRank: number, lexicalRank: number | undefined): number {
+  return 1 / (RRF_K + cosineRank) + (lexicalRank === undefined ? 0 : 1 / (RRF_K + lexicalRank));
+}
+
 /**
- * The Chunks most similar to a question, by cosine distance against stored
- * embeddings. Sequential scan is the point: at this Corpus size it beats an
- * approximate index. See ADR-0001.
+ * The Chunks to ground an Answer, ranked by Reciprocal Rank Fusion of cosine
+ * similarity and BM25 over Chunk bodies, then dropped below the cosine
+ * threshold. Sequential scan is the point: at this Corpus size it beats an
+ * approximate index. See ADR-0001 and ADR-0005.
  */
 export async function retrieve({
   db,
@@ -48,6 +72,7 @@ export async function retrieve({
   const distance = cosineDistance(chunkTable.embedding, queryEmbedding);
   const neighbours = await db
     .select({
+      id: chunkTable.id,
       body: chunkTable.body,
       heading: chunkTable.heading,
       anchor: chunkTable.anchor,
@@ -56,18 +81,41 @@ export async function retrieve({
       distance,
     })
     .from(chunkTable)
-    .innerJoin(pageTable, eq(chunkTable.pageId, pageTable.id))
-    .orderBy(distance)
-    .limit(MAX_CHUNKS);
+    .innerJoin(pageTable, eq(chunkTable.pageId, pageTable.id));
 
-  return neighbours
-    .map((neighbour) => ({
-      body: neighbour.body,
-      heading: neighbour.heading,
-      anchor: neighbour.anchor,
-      url: neighbour.url,
-      filename: neighbour.filename,
-      similarity: 1 - Number(neighbour.distance),
+  const chunks: RankedChunk[] = neighbours.map((neighbour) => ({
+    id: neighbour.id,
+    body: neighbour.body,
+    heading: neighbour.heading,
+    anchor: neighbour.anchor,
+    url: neighbour.url,
+    filename: neighbour.filename,
+    similarity: 1 - Number(neighbour.distance),
+  }));
+
+  const dense = cosineRanks(chunks);
+  const lexical = bm25Ranks(
+    bm25IndexFor(chunks.map((chunk) => ({ id: chunk.id, body: chunk.body }))),
+    question,
+  );
+
+  return chunks
+    .map((chunk) => ({
+      chunk,
+      fused: rrfScore(dense.get(chunk.id) ?? chunks.length, lexical.get(chunk.id)),
     }))
-    .filter((retrieved) => retrieved.similarity >= minSimilarity);
+    .sort(
+      (left, right) => right.fused - left.fused || right.chunk.similarity - left.chunk.similarity,
+    )
+    .map(({ chunk }) => chunk)
+    .filter((retrieved) => retrieved.similarity >= minSimilarity)
+    .slice(0, MAX_CHUNKS)
+    .map(({ body, heading, anchor, url, filename, similarity }) => ({
+      body,
+      heading,
+      anchor,
+      url,
+      filename,
+      similarity,
+    }));
 }

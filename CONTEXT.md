@@ -20,6 +20,10 @@ _Avoid_: Segment, fragment, section, block
 Every Page across every Source, as most recently ingested.
 _Avoid_: Knowledge base, index, dataset
 
+**Retrieval**:
+The Chunks taken from the Corpus to produce one Answer.
+_Avoid_: Search results, hits, matches
+
 **Ask**:
 A question posed to the agent that should produce one Answer.
 _Avoid_: Query, prompt, message, request

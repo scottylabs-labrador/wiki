@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import { splitIntoChunks } from "../src/chunker.ts";
 
 describe("splitIntoChunks", () => {
-  it("starts a Chunk at each heading", () => {
+  it("starts a Chunk at each # or ## heading", () => {
     const chunks = splitIntoChunks(
-      ["## Client", "", "React and TanStack Router.", "", "## Styling", "", "Tailwind."].join("\n"),
+      ["# Client", "", "React and TanStack Router.", "", "## Styling", "", "Tailwind."].join("\n"),
     );
 
     expect(chunks.map((chunk) => chunk.heading)).toEqual(["Client", "Styling"]);
@@ -46,28 +46,36 @@ describe("splitIntoChunks", () => {
     expect(chunks.map((chunk) => chunk.heading)).toEqual(["Toolings", "AI"]);
   });
 
-  it("splits at every heading level, and keeps each heading with its body", () => {
+  it("keeps nested headings inside their # or ## section", () => {
     const chunks = splitIntoChunks(
+      [
+        "# Title",
+        "",
+        "Intro.",
+        "",
+        "## Troubleshooting",
+        "",
+        "### Port in use",
+        "",
+        "Kill it.",
+        "",
+        "#### Windows",
+      ].join("\n"),
+    );
+
+    expect(chunks.map((chunk) => chunk.heading)).toEqual(["Title", "Troubleshooting"]);
+    expect(chunks[0]?.body).toBe("# Title\n\nIntro.");
+    expect(chunks[1]?.body).toBe(
       ["## Troubleshooting", "", "### Port in use", "", "Kill it.", "", "#### Windows"].join("\n"),
     );
-
-    expect(chunks.map((chunk) => chunk.heading)).toEqual([
-      "Troubleshooting",
-      "Port in use",
-      "Windows",
-    ]);
-    expect(chunks[1]?.body).toBe("### Port in use\n\nKill it.");
   });
 
-  it("starts a Chunk at an underlined heading, which GitHub also anchors", () => {
+  it("does not split at an underlined heading", () => {
     const chunks = splitIntoChunks(
-      ["Overview", "========", "", "What this is.", "", "Details", "-------", "", "More."].join(
-        "\n",
-      ),
+      ["Overview", "========", "", "What this is.", "", "## Details", "", "More."].join("\n"),
     );
 
-    expect(chunks.map((chunk) => chunk.heading)).toEqual(["Overview", "Details"]);
-    expect(chunks.map((chunk) => chunk.anchor)).toEqual(["overview", "details"]);
+    expect(chunks.map((chunk) => chunk.heading)).toEqual([null, "Details"]);
   });
 
   it("does not mistake a thematic break for an underlined heading", () => {

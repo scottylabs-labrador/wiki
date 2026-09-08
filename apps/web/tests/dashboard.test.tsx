@@ -82,10 +82,10 @@ describe("dashboard", () => {
     expect(screen.queryByText("Committee members sign in with Keycloak.")).toBeNull();
 
     await userEvent.click(screen.getByRole("tab", { name: "Styling.md" }));
-    expect(screen.getByText("Page")).toBeDefined();
+    expect(screen.getByText("Untitled")).toBeDefined();
     expect(screen.queryByText("Sign in")).toBeNull();
 
-    await userEvent.click(screen.getByText("Page"));
+    await userEvent.click(screen.getByText("Untitled"));
     expect(screen.getByText("The frontend is styled with Tailwind CSS.")).toBeDefined();
   });
 });

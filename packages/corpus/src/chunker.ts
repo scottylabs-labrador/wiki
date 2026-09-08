@@ -19,21 +19,21 @@ export interface PageChunk {
  * Chunks from the same commit, so the Corpus has to be rebuilt even though
  * nothing moved upstream.
  */
-export const CHUNKER_VERSION = 2;
+export const CHUNKER_VERSION = 3;
 
-const ATX_HEADING = /^#{1,6}[ \t]+(.*)$/;
-const SETEXT_UNDERLINE = /^[ \t]*(?:=+|-+)[ \t]*$/;
+const SECTION_HEADING = /^#{1,2}[ \t]+(.*)$/;
 const CODE_FENCE = /^[ \t]*(`{3,}|~{3,})/;
 /** Pandoc-style id so an HTML Source can keep the anchors it already publishes. */
 const EXPLICIT_ANCHOR = /^(.*?)\s*\{#([^\s}]+)\}\s*$/;
 
 /**
- * Splits a Page at its markdown headings, keeping each heading with its text.
+ * Splits a Page at its `#` and `##` headings, keeping each heading with its text.
  *
- * A Page with nothing to retrieve yields no Chunks at all, rather than one
- * empty Chunk: an embedded empty string is a vector that answers every query
- * and cites a Page that says nothing. Such a Page is still ingested, so it can
- * be cited as a whole once someone writes it.
+ * Nested headings (`###` and below) stay inside the section they sit under. A Page with nothing
+ * to retrieve yields no Chunks at all, rather than one empty Chunk: an
+ * embedded empty string is a vector that answers every query and cites a Page
+ * that says nothing. Such a Page is still ingested, so it can be cited as a
+ * whole once someone writes it.
  */
 export function splitIntoChunks(markdown: string): PageChunk[] {
   const slugger = new GithubSlugger();
@@ -60,10 +60,7 @@ export function splitIntoChunks(markdown: string): PageChunk[] {
     current = { heading: title, anchor, body: "" };
   }
 
-  const source = markdown.split("\n");
-  for (let index = 0; index < source.length; index += 1) {
-    const line = source[index] ?? "";
-
+  for (const line of markdown.split("\n")) {
     const marker = CODE_FENCE.exec(line)?.[1]?.[0];
     if (marker !== undefined) {
       // A fence ends only on the character that opened it, so the other marker
@@ -77,31 +74,17 @@ export function splitIntoChunks(markdown: string): PageChunk[] {
       continue;
     }
 
-    // A shell comment inside a fence looks exactly like an ATX heading, and
-    // this wiki is largely setup instructions.
+    // A shell comment inside a fence looks exactly like a heading, and this
+    // wiki is largely setup instructions.
     if (fence !== null) {
       lines.push(line);
       continue;
     }
 
-    const atxHeading = ATX_HEADING.exec(line)?.[1]?.trim();
-    if (atxHeading !== undefined) {
-      startSection(atxHeading);
+    const sectionHeading = SECTION_HEADING.exec(line)?.[1]?.trim();
+    if (sectionHeading !== undefined) {
+      startSection(sectionHeading);
       lines.push(line);
-      continue;
-    }
-
-    // GitHub anchors an underlined heading too. The underline has to fall under
-    // a line standing on its own, which is what keeps a thematic break rule
-    // trailing a paragraph from reading as a heading.
-    const underlined =
-      line.trim() !== "" &&
-      SETEXT_UNDERLINE.test(source[index + 1] ?? "") &&
-      (lines.length === 0 || lines[lines.length - 1]?.trim() === "");
-    if (underlined) {
-      startSection(line.trim());
-      lines.push(line, source[index + 1] ?? "");
-      index += 1;
       continue;
     }
 

@@ -80,7 +80,7 @@ function ChunkCollapsible({ heading, body }: { heading: string | null; body: str
           aria-hidden
           className="size-3 shrink-0 transition-transform group-open:rotate-90"
         />
-        {heading ?? "Page"}
+        {heading ?? "Untitled"}
       </summary>
       {open && (
         <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed break-words">{body}</p>

@@ -14,6 +14,7 @@ import { auth } from "./lib/auth.ts";
 import { errorHandler } from "./middlewares/errorHandler.ts";
 import { notFoundHandler } from "./middlewares/notFoundHandler.ts";
 import { ANSWER_STREAM_PATH, QUOTA_PATH, readQuota, streamAnswer } from "./routes/chatRoute.ts";
+import { receiveSlackEvent, SLACK_EVENTS_PATH } from "./routes/slackRoute.ts";
 
 const app = express();
 
@@ -25,6 +26,10 @@ app.use(cors(corsOptions));
 
 // Setup Authentication: https://www.better-auth.com/docs/integrations/express
 app.all("/api/auth/*splat", toNodeHandler(auth) as unknown as RequestHandler);
+
+// Slack signs the raw body. This path has to be mounted before express.json
+// parses it away.
+app.post(SLACK_EVENTS_PATH, express.raw({ type: "application/json" }), receiveSlackEvent);
 
 // Mount after Better Auth so it can read the raw request body.
 app.use(express.json({ limit: "1mb" }));
@@ -44,9 +49,8 @@ app.get("/openapi.json", (_req, res) => {
   res.status(200).send(swaggerJson);
 });
 
-// The only route outside `RegisterRoutes`. TSOA cannot describe server-sent
-// events in an OpenAPI spec, so the Answer stream is mounted by hand. It needs
-// both the Better Auth handler and `express.json` above it.
+// Hand-written rather than TSOA: the Answer stream is SSE, and Slack's Events
+// API is a signed webhook. Neither belongs in the OpenAPI spec.
 app.post(ANSWER_STREAM_PATH, streamAnswer);
 app.get(QUOTA_PATH, readQuota);
 

@@ -20,6 +20,10 @@ _Avoid_: Segment, fragment, section, block
 Every Page across every Source, as most recently ingested.
 _Avoid_: Knowledge base, index, dataset
 
+**Ask**:
+A question posed to the agent that should produce one Answer.
+_Avoid_: Query, prompt, message, request
+
 **Answer**:
 One model response to one question, together with the Citations that support it.
 _Avoid_: Reply, completion, message
@@ -27,3 +31,7 @@ _Avoid_: Reply, completion, message
 **Citation**:
 A link to the section of a Page that an Answer drew on. An Answer that no Page supports has none.
 _Avoid_: Reference, source link, footnote
+
+**Member**:
+A person identified by an Andrew ID. An Ask on the web requires a Member; an Ask does not always come from a Member.
+_Avoid_: User, account

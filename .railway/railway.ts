@@ -96,6 +96,8 @@ export default defineRailway(() => {
       RETRIEVAL_MIN_SIMILARITY: "0.3",
       SENTRY_DSN: preserve(),
       SERVER_URL: "https://api.wiki.scottylabs.org",
+      SLACK_BOT_TOKEN: preserve(),
+      SLACK_SIGNING_SECRET: preserve(),
     },
   });
 

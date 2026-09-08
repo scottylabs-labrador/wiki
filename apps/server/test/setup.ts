@@ -14,6 +14,8 @@ process.env["OPENROUTER_API_KEY"] ??= "test-openrouter-key";
 process.env["OPENROUTER_MODEL"] ??= "~deepseek/deepseek-v4-flash-latest";
 process.env["OPENROUTER_EMBEDDING_MODEL"] ??= "openai/text-embedding-3-small";
 process.env["SERVER_URL"] ??= "https://api.example.com";
+process.env["SLACK_BOT_TOKEN"] ??= "xoxb-test-token";
+process.env["SLACK_SIGNING_SECRET"] ??= "test-slack-signing-secret";
 
 vi.mock("../src/lib/db.ts", async () => {
   const { testDb } = await import("./harness.ts");

@@ -19,6 +19,8 @@ const envSchema = z.object({
   SENTRY_DSN: z.string().optional(),
   SERVER_URL: z.url(),
   SERVER_PORT: z.coerce.number().default(80),
+  SLACK_BOT_TOKEN: z.string(),
+  SLACK_SIGNING_SECRET: z.string(),
 });
 
 // Validate `process.env` against our schema and return the result

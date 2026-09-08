@@ -25,5 +25,7 @@ export const stackEnv = {
   // and no test signs in to ask a question.
   OPENROUTER_API_KEY: "e2e-openrouter-key",
   OPENROUTER_MODEL: "~deepseek/deepseek-v4-flash-latest",
+  SLACK_BOT_TOKEN: "xoxb-e2e-token",
+  SLACK_SIGNING_SECRET: "e2e-slack-signing-secret",
   VITE_SERVER_URL: API_URL,
 };

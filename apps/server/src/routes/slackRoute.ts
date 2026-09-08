@@ -61,7 +61,6 @@ export function receiveSlackEvent(req: Request, res: Response): void {
 
     const challenge = urlVerificationSchema.safeParse(payload);
     if (challenge.success) {
-      console.info("Slack url_verification");
       res.status(200).json({ challenge: challenge.data.challenge });
       return;
     }
@@ -75,7 +74,6 @@ export function receiveSlackEvent(req: Request, res: Response): void {
       !event.ts ||
       !event.channel
     ) {
-      console.info(`Slack event ignored type=${callback.success ? event?.type : "unparsed"}`);
       res.status(200).end();
       return;
     }
@@ -85,17 +83,13 @@ export function receiveSlackEvent(req: Request, res: Response): void {
       return;
     }
 
-    console.info(`Slack app_mention channel=${event.channel}`);
     res.status(200).end();
     void deliverSlackAsk({
       channel: event.channel,
       text: event.text,
       ts: event.ts,
       ...(event.thread_ts ? { thread_ts: event.thread_ts } : {}),
-    }).catch((error) => {
-      console.error("Slack Ask delivery rejected", error);
-      captureUnexpectedError(error);
-    });
+    }).catch(captureUnexpectedError);
   } catch (error) {
     captureUnexpectedError(error);
     if (!res.headersSent) {

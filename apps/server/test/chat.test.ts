@@ -275,6 +275,7 @@ describe(`POST ${ANSWER_STREAM_PATH}`, () => {
       heading: "Keycloak",
       anchor: "keycloak",
       publicUrl: "https://wiki.example.com/Auth",
+      sourceId: "scottystack-wiki",
     });
     fakeOpenRouter({ answer: () => deltaStream(["ok"]) });
 
@@ -289,7 +290,13 @@ describe(`POST ${ANSWER_STREAM_PATH}`, () => {
     expect(res.text.startsWith("event: citations\n")).toBe(true);
     expect(res.text).toContain(
       JSON.stringify({
-        citations: [{ title: "Auth", url: "https://wiki.example.com/Auth#keycloak" }],
+        citations: [
+          {
+            title: "Auth",
+            url: "https://wiki.example.com/Auth#keycloak",
+            sourceTitle: "ScottyStack Wiki",
+          },
+        ],
         grounded: true,
       }),
     );
@@ -442,12 +449,13 @@ async function seedChunk(opts: {
   anchor?: string | null;
   publicUrl?: string;
   embedding?: number[];
+  sourceId?: string;
 }) {
   const filename = opts.filename ?? "Auth.md";
   const [inserted] = await testDb
     .insert(page)
     .values({
-      sourceId: "test-wiki",
+      sourceId: opts.sourceId ?? "test-wiki",
       filename,
       publicUrl: opts.publicUrl ?? `https://wiki.example.com/${filename.replace(/\.md$/, "")}`,
     })

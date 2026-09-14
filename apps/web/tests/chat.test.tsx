@@ -238,17 +238,23 @@ describe("chat", () => {
   it("shows Citations as links once the Answer is finished", async () => {
     setSession(userSession());
     setAnswerDeltas(["Keycloak."]);
-    setAnswerCitations([{ title: "Auth", url: "https://github.com/example/wiki/Auth#keycloak" }]);
+    setAnswerCitations([
+      {
+        title: "Auth",
+        url: "https://github.com/example/wiki/Auth#keycloak",
+        sourceTitle: "ScottyStack Wiki",
+      },
+    ]);
     await renderApp("/");
 
     await ask("How do members sign in?");
 
     expect(await screen.findByText("Cited Documents")).toBeDefined();
-    expect(screen.queryByRole("link", { name: "Auth" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "ScottyStack Wiki: Auth" })).toBeNull();
 
     await expandCitedDocuments();
 
-    const citation = screen.getByRole("link", { name: "Auth" });
+    const citation = screen.getByRole("link", { name: "ScottyStack Wiki: Auth" });
     expect(citation.getAttribute("href")).toBe("https://github.com/example/wiki/Auth#keycloak");
     expect(citation.textContent).not.toContain("https://");
   });
@@ -270,14 +276,16 @@ describe("chat", () => {
   it("names the Pages being consulted before the Answer has finished", async () => {
     setSession(userSession());
     setAnswerDeltas(["Keycloak."]);
-    setAnswerCitations([{ title: "Auth", url: "https://example.com/Auth" }]);
+    setAnswerCitations([
+      { title: "Auth", url: "https://example.com/Auth", sourceTitle: "ScottyStack Wiki" },
+    ]);
     const release = holdBeforeAnswerText();
     await renderApp("/");
 
     await ask("How do members sign in?");
 
     await waitFor(() => {
-      expect(screen.getByText(/Looking at Auth/)).toBeDefined();
+      expect(screen.getByText(/Looking at ScottyStack Wiki: Auth/)).toBeDefined();
     });
     expect(screen.queryByText("Keycloak.")).toBeNull();
 
@@ -286,10 +294,10 @@ describe("chat", () => {
       expect(screen.getByText("Keycloak.")).toBeDefined();
     });
     expect(screen.getByText("Cited Documents")).toBeDefined();
-    expect(screen.queryByRole("link", { name: "Auth" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "ScottyStack Wiki: Auth" })).toBeNull();
 
     await expandCitedDocuments();
-    expect(screen.getByRole("link", { name: "Auth" }).getAttribute("href")).toBe(
+    expect(screen.getByRole("link", { name: "ScottyStack Wiki: Auth" }).getAttribute("href")).toBe(
       "https://example.com/Auth",
     );
   });
@@ -297,35 +305,43 @@ describe("chat", () => {
   it("keeps Citations on finished Answers while a later Answer is still being written", async () => {
     setSession(userSession());
     setAnswerDeltas(["Keycloak."]);
-    setAnswerCitations([{ title: "Auth", url: "https://example.com/Auth" }]);
+    setAnswerCitations([
+      { title: "Auth", url: "https://example.com/Auth", sourceTitle: "ScottyStack Wiki" },
+    ]);
     await renderApp("/");
 
     await ask("How do members sign in?");
     expect(await screen.findByText("Cited Documents")).toBeDefined();
     await expandCitedDocuments();
-    expect(screen.getByRole("link", { name: "Auth" })).toBeDefined();
+    expect(screen.getByRole("link", { name: "ScottyStack Wiki: Auth" })).toBeDefined();
 
     setAnswerDeltas(["Members."]);
-    setAnswerCitations([{ title: "Onboarding", url: "https://example.com/Onboarding" }]);
+    setAnswerCitations([
+      {
+        title: "Onboarding",
+        url: "https://example.com/Onboarding",
+        sourceTitle: "Labrador Wiki Wiki",
+      },
+    ]);
     const release = holdBeforeAnswerText();
     await ask("Who can join?");
 
     await waitFor(() => {
-      expect(screen.getByText(/Looking at Onboarding/)).toBeDefined();
+      expect(screen.getByText(/Looking at Labrador Wiki Wiki: Onboarding/)).toBeDefined();
     });
-    expect(screen.getByRole("link", { name: "Auth" })).toBeDefined();
-    expect(screen.queryByRole("link", { name: "Onboarding" })).toBeNull();
+    expect(screen.getByRole("link", { name: "ScottyStack Wiki: Auth" })).toBeDefined();
+    expect(screen.queryByRole("link", { name: "Labrador Wiki Wiki: Onboarding" })).toBeNull();
 
     release();
     await waitFor(() => {
       expect(screen.getAllByText("Cited Documents")).toHaveLength(2);
     });
-    expect(screen.queryByRole("link", { name: "Onboarding" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Labrador Wiki Wiki: Onboarding" })).toBeNull();
 
     await expandCitedDocuments(1);
-    expect(screen.getByRole("link", { name: "Onboarding" }).getAttribute("href")).toBe(
-      "https://example.com/Onboarding",
-    );
+    expect(
+      screen.getByRole("link", { name: "Labrador Wiki Wiki: Onboarding" }).getAttribute("href"),
+    ).toBe("https://example.com/Onboarding");
   });
 
   it("shows remaining questions under Ask, and the count and hourly refresh", async () => {

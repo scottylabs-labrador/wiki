@@ -18,6 +18,7 @@ export interface RetrievedChunk {
   anchor: string | null;
   url: string;
   filename: string;
+  sourceId: string;
   /** Cosine similarity to the question, 1 when identical and 0 when orthogonal. */
   similarity: number;
 }
@@ -78,6 +79,7 @@ export async function retrieve({
       anchor: chunkTable.anchor,
       url: pageTable.publicUrl,
       filename: pageTable.filename,
+      sourceId: pageTable.sourceId,
       distance,
     })
     .from(chunkTable)
@@ -90,6 +92,7 @@ export async function retrieve({
     anchor: neighbour.anchor,
     url: neighbour.url,
     filename: neighbour.filename,
+    sourceId: neighbour.sourceId,
     similarity: 1 - Number(neighbour.distance),
   }));
 
@@ -110,12 +113,13 @@ export async function retrieve({
     .map(({ chunk }) => chunk)
     .filter((retrieved) => retrieved.similarity >= minSimilarity)
     .slice(0, MAX_CHUNKS)
-    .map(({ body, heading, anchor, url, filename, similarity }) => ({
+    .map(({ body, heading, anchor, url, filename, sourceId, similarity }) => ({
       body,
       heading,
       anchor,
       url,
       filename,
+      sourceId,
       similarity,
     }));
 }

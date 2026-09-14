@@ -160,12 +160,13 @@ async function seedChunk(opts: {
   anchor?: string | null;
   publicUrl?: string;
   embedding?: number[];
+  sourceId?: string;
 }) {
   const filename = opts.filename ?? "Auth.md";
   const [inserted] = await testDb
     .insert(page)
     .values({
-      sourceId: "test-wiki",
+      sourceId: opts.sourceId ?? "test-wiki",
       filename,
       publicUrl: opts.publicUrl ?? `https://wiki.example.com/${filename.replace(/\.md$/, "")}`,
     })
@@ -246,6 +247,7 @@ describe(`POST ${SLACK_EVENTS_PATH}`, () => {
       heading: "Keycloak",
       anchor: "keycloak",
       publicUrl: "https://wiki.example.com/Auth",
+      sourceId: "scottystack-wiki",
     });
     fakeNetwork({
       answer: () =>
@@ -262,7 +264,7 @@ describe(`POST ${SLACK_EVENTS_PATH}`, () => {
     await waitForDelivery();
 
     expect(postedText()).toBe(
-      "Use <https://wiki.example.com/Auth#keycloak|Keycloak> via <https://github.com/example/ScottyStack|this link>.\n\n<https://wiki.example.com/Auth#keycloak|Auth>",
+      "Use <https://wiki.example.com/Auth#keycloak|Keycloak> via <https://github.com/example/ScottyStack|this link>.\n\n<https://wiki.example.com/Auth#keycloak|ScottyStack Wiki: Auth>",
     );
     expect(outcomeReaction()).toBe(GROUNDED_REACTION);
     expect(slackCalls.some((call) => call.method === "reactions.remove")).toBe(true);
@@ -353,11 +355,27 @@ describe("formatSlackAnswer", () => {
   it("turns markdown links into Slack links and appends Citation titles", () => {
     expect(
       formatSlackAnswer("Use it via [this link](https://github.com/example/ScottyStack).", [
-        { title: "Quickstart", url: "https://wiki.example.com/Quickstart#template" },
+        {
+          title: "Quickstart",
+          url: "https://wiki.example.com/Quickstart#template",
+          sourceTitle: "ScottyStack Wiki",
+        },
       ]),
     ).toBe(
-      "Use it via <https://github.com/example/ScottyStack|this link>.\n\n<https://wiki.example.com/Quickstart#template|Quickstart>",
+      "Use it via <https://github.com/example/ScottyStack|this link>.\n\n<https://wiki.example.com/Quickstart#template|ScottyStack Wiki: Quickstart>",
     );
+  });
+
+  it("omits the Source when it is the same as the Page title", () => {
+    expect(
+      formatSlackAnswer("See the constitution.", [
+        {
+          title: "Goldador",
+          url: "https://scottylabs-labrador.github.io/goldador/",
+          sourceTitle: "Goldador",
+        },
+      ]),
+    ).toBe("See the constitution.\n\n<https://scottylabs-labrador.github.io/goldador/|Goldador>");
   });
 
   it("leaves markdown links inside code alone", () => {

@@ -88,6 +88,7 @@ describe("retrieve", () => {
     const retrieved = await retrieve({ db: testDb, embedder, question: AUTH_QUESTION });
 
     expect(retrieved[0]?.body).toBe(AUTH_BODY);
+    expect(retrieved[0]?.sourceId).toBe("test-wiki");
   });
 
   it("returns nothing from an empty Corpus without embedding the question", async () => {

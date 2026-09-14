@@ -1,3 +1,5 @@
+import { sourceTitleFor } from "@wiki/common";
+
 import type { RetrievedChunk } from "./retrieve.ts";
 
 /** How many Pages an Answer may cite. */
@@ -7,6 +9,7 @@ export const MAX_CITATIONS = 3;
 export interface Citation {
   title: string;
   url: string;
+  sourceTitle: string;
 }
 
 /**
@@ -31,6 +34,7 @@ export function citationsFrom(chunks: RetrievedChunk[]): Citation[] {
     .map((retrieved) => ({
       title: pageTitle(retrieved.filename),
       url: retrieved.anchor ? `${retrieved.url}#${retrieved.anchor}` : retrieved.url,
+      sourceTitle: sourceTitleFor(retrieved.sourceId),
     }));
 }
 

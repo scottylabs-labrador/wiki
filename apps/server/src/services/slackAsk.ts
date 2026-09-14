@@ -1,3 +1,4 @@
+import { citationLabel } from "@wiki/common";
 import type { Citation } from "@wiki/corpus";
 
 import { addReaction, postThreadReply, removeReaction, type SlackMention } from "../lib/slack.ts";
@@ -65,7 +66,9 @@ export function formatSlackAnswer(text: string, citations: Citation[]): string {
   if (citations.length === 0) {
     return body;
   }
-  const links = citations.map((citation) => `<${citation.url}|${citation.title}>`).join("\n");
+  const links = citations
+    .map((citation) => `<${citation.url}|${citationLabel(citation)}>`)
+    .join("\n");
   return `${body}\n\n${links}`;
 }
 

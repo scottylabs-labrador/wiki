@@ -55,3 +55,19 @@ export const sourceCatalog: readonly SourceCatalogEntry[] = [
   scottyStackWikiSource,
   goldadorPageSource,
 ];
+
+/** Catalog title for a Source id, or the id itself when the catalog has no entry. */
+export function sourceTitleFor(sourceId: string): string {
+  return sourceCatalog.find((source) => source.id === sourceId)?.title ?? sourceId;
+}
+
+/**
+ * The text of a Citation link: Source, then Page title. When they are the
+ * same word (Goldador), the Source is omitted.
+ */
+export function citationLabel(citation: { sourceTitle: string; title: string }): string {
+  if (citation.sourceTitle === citation.title) {
+    return citation.title;
+  }
+  return `${citation.sourceTitle}: ${citation.title}`;
+}

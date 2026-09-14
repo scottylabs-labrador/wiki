@@ -1,3 +1,4 @@
+import { citationLabel } from "@wiki/common";
 import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 
@@ -28,7 +29,7 @@ export function AnswerCitations({ citations }: { citations: Citation[] }) {
                   title={citation.url}
                   className="text-xs text-blue-600 underline underline-offset-4 break-words dark:text-blue-400"
                 >
-                  {citation.title}
+                  {citationLabel(citation)}
                 </a>
               </li>
             ))}
@@ -46,7 +47,7 @@ export function ConsultingPages({ citations }: { citations: Citation[] }) {
 
   return (
     <p className="text-sm text-muted-foreground">
-      Looking at {citations.map((citation) => citation.title).join(", ")}…
+      Looking at {citations.map((citation) => citationLabel(citation)).join(", ")}…
     </p>
   );
 }

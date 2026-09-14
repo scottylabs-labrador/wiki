@@ -1,4 +1,4 @@
-import { sourceCatalog } from "@wiki/common";
+import { sourceCatalog, sourceTitleFor } from "@wiki/common";
 import { chunk, page } from "@wiki/db/schema";
 import { asc, eq } from "drizzle-orm";
 
@@ -16,10 +16,6 @@ export interface CorpusPage {
   filename: string;
   publicUrl: string;
   chunks: CorpusChunk[];
-}
-
-function titleFor(sourceId: string): string {
-  return sourceCatalog.find((source) => source.id === sourceId)?.title ?? sourceId;
 }
 
 function sourceOrder(sourceId: string): number {
@@ -56,7 +52,7 @@ export const corpusService = {
       if (!group) {
         group = {
           sourceId: row.sourceId,
-          sourceTitle: titleFor(row.sourceId),
+          sourceTitle: sourceTitleFor(row.sourceId),
           filename: row.filename,
           publicUrl: row.publicUrl,
           chunks: [],

@@ -1,3 +1,4 @@
+import { citationLabel } from "@wiki/common";
 import { describe, expect, it } from "vitest";
 
 import { citationsFrom } from "../src/citations.ts";
@@ -9,6 +10,7 @@ function chunk(overrides: Partial<RetrievedChunk> & Pick<RetrievedChunk, "url" |
     heading: null,
     anchor: null,
     similarity: 1,
+    sourceId: "scottystack-wiki",
     ...overrides,
   };
 }
@@ -54,9 +56,50 @@ describe("citationsFrom", () => {
     ]);
 
     expect(citations).toEqual([
-      { title: "Auth", url: "https://wiki.example.com/Auth#keycloak" },
-      { title: "Frontend", url: "https://wiki.example.com/Frontend#styling" },
-      { title: "Backend", url: "https://wiki.example.com/Backend#api" },
+      {
+        title: "Auth",
+        url: "https://wiki.example.com/Auth#keycloak",
+        sourceTitle: "ScottyStack Wiki",
+      },
+      {
+        title: "Frontend",
+        url: "https://wiki.example.com/Frontend#styling",
+        sourceTitle: "ScottyStack Wiki",
+      },
+      {
+        title: "Backend",
+        url: "https://wiki.example.com/Backend#api",
+        sourceTitle: "ScottyStack Wiki",
+      },
+    ]);
+  });
+
+  it("names the Source from the catalog, and falls back to the Source id", () => {
+    expect(
+      citationsFrom([
+        chunk({
+          filename: "Home.md",
+          url: "https://github.com/example/wiki/Home",
+          sourceId: "labrador-wiki",
+        }),
+        chunk({
+          filename: "Auth.md",
+          url: "https://wiki.example.com/Auth",
+          sourceId: "unknown-wiki",
+          similarity: 0.5,
+        }),
+      ]),
+    ).toEqual([
+      {
+        title: "Home",
+        url: "https://github.com/example/wiki/Home",
+        sourceTitle: "Labrador Wiki Wiki",
+      },
+      {
+        title: "Auth",
+        url: "https://wiki.example.com/Auth",
+        sourceTitle: "unknown-wiki",
+      },
     ]);
   });
 
@@ -65,7 +108,13 @@ describe("citationsFrom", () => {
       citationsFrom([
         chunk({ filename: "Contribution.md", url: "https://wiki.example.com/Contribution" }),
       ]),
-    ).toEqual([{ title: "Contribution", url: "https://wiki.example.com/Contribution" }]);
+    ).toEqual([
+      {
+        title: "Contribution",
+        url: "https://wiki.example.com/Contribution",
+        sourceTitle: "ScottyStack Wiki",
+      },
+    ]);
   });
 
   it("leaves lookalike punctuation in the URL alone", () => {
@@ -80,5 +129,14 @@ describe("citationsFrom", () => {
 
     expect(citations[0]?.url).toBe(`${url}#overview`);
     expect(citations[0]?.url).not.toContain("Full-Stack");
+  });
+});
+
+describe("citationLabel", () => {
+  it("prefixes the Page title with the Source, unless they are the same", () => {
+    expect(citationLabel({ sourceTitle: "ScottyStack Wiki", title: "Auth" })).toBe(
+      "ScottyStack Wiki: Auth",
+    );
+    expect(citationLabel({ sourceTitle: "Goldador", title: "Goldador" })).toBe("Goldador");
   });
 });

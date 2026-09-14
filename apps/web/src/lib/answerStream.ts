@@ -13,6 +13,7 @@ export interface Turn {
 export interface Citation {
   title: string;
   url: string;
+  sourceTitle: string;
 }
 
 const ANSWER_STREAM_URL = `${env.VITE_SERVER_URL}/chat/answers`;

@@ -120,4 +120,18 @@ describe("splitIntoChunks", () => {
       anchor: "permissions",
     });
   });
+
+  it("splits a heading section that would overflow the embedding window", () => {
+    const passage = "The onboarding video covers Goldador, Railway, and the template.\n\n";
+    const chunks = splitIntoChunks(`## Transcript\n\n${passage.repeat(800)}`);
+
+    expect(chunks.length).toBeGreaterThan(1);
+    expect(chunks.every((chunk) => chunk.heading === "Transcript")).toBe(true);
+    expect(chunks.every((chunk) => chunk.anchor === "transcript")).toBe(true);
+    // text-embedding-3-small rejects inputs over 8192 tokens (~4 characters each).
+    expect(chunks.every((chunk) => chunk.body.length <= 8192 * 4)).toBe(true);
+    expect(
+      chunks.reduce((count, chunk) => count + (chunk.body.match(/Goldador/g)?.length ?? 0), 0),
+    ).toBe(800);
+  });
 });

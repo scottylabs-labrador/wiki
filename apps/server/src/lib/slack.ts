@@ -26,7 +26,7 @@ export function verifySlackSignature(opts: {
   signature: string | undefined;
   now?: number;
 }): boolean {
-  if (!opts.timestamp || !opts.signature) {
+  if (!opts.timestamp || !opts.signature || !env.SLACK_SIGNING_SECRET) {
     return false;
   }
 
@@ -77,6 +77,10 @@ export async function postThreadReply(mention: SlackMention, text: string): Prom
 }
 
 async function slackMethod(method: string, body: Record<string, unknown>): Promise<void> {
+  if (!env.SLACK_BOT_TOKEN) {
+    throw new Error("SLACK_BOT_TOKEN is required to call Slack");
+  }
+
   const response = await fetch(`${SLACK_API}/${method}`, {
     method: "POST",
     headers: {

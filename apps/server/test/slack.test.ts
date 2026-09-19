@@ -95,6 +95,10 @@ function deltaStream(texts: string[]) {
 }
 
 function signedHeaders(rawBody: string, timestamp = String(Math.floor(Date.now() / 1000))) {
+  if (!env.SLACK_SIGNING_SECRET) {
+    throw new Error("SLACK_SIGNING_SECRET is required to sign Slack test requests");
+  }
+
   const digest = createHmac("sha256", env.SLACK_SIGNING_SECRET)
     .update(`v0:${timestamp}:${rawBody}`)
     .digest("hex");

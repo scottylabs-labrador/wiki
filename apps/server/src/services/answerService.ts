@@ -3,6 +3,8 @@ import { citationsFrom, retrieve, type Citation, type RetrievedChunk } from "@wi
 import { env } from "../env.ts";
 import { db } from "../lib/db.ts";
 import { embedder } from "../lib/embedder.ts";
+import type { SlackHit } from "../lib/slack.ts";
+import { captureUnexpectedError } from "../middlewares/errorHandler.ts";
 
 /** One question or one Answer in a conversation, as the chat model sees it. */
 export interface Turn {
@@ -13,7 +15,14 @@ export interface Turn {
 export interface AnswerStream {
   grounded: boolean;
   citations: Citation[];
+  /** Public Slack messages supplied to the model. Empty unless a mention searched. */
+  slackHits: SlackHit[];
   deltas: AsyncIterable<string>;
+}
+
+/** One public-channel search the mention path may run. Absent on the web. */
+export interface MentionSearch {
+  search(query: string): Promise<SlackHit[]>;
 }
 
 const CHAT_MODEL_URL = "https://openrouter.ai/api/v1/chat/completions";
@@ -45,16 +54,67 @@ const REWRITE = [
   "unchanged.",
 ].join(" ");
 
+const SLACK_TOOL_GUIDANCE = [
+  "You may call search_slack once when the documentation does not answer the",
+  "question, on any topic. Do not call it when the documentation already answers.",
+  "If no documentation was given, search. When a tool result lists Slack messages,",
+  "base that part of the Answer on them rather than guessing. Do not invent Slack",
+  "links.",
+].join(" ");
+
+const SEARCH_SLACK_TOOL = {
+  type: "function",
+  function: {
+    name: "search_slack",
+    description: [
+      "Search public Slack channels. Use this when the documentation does not",
+      "answer the question, including when no documentation was given. Do not",
+      "use it when the documentation already answers.",
+    ].join(" "),
+    parameters: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "What to search for, as a question or as keywords.",
+        },
+      },
+      required: ["query"],
+    },
+  },
+} as const;
+
 /** One frame of a streamed Answer, as OpenRouter writes it on the wire. */
 interface DeltaFrame {
   choices?: Array<{ delta?: { content?: string | null } }>;
   error?: { message?: string };
 }
 
+interface ToolCall {
+  id?: string;
+  type?: string;
+  function?: { name?: string; arguments?: string };
+}
+
 interface CompletionFrame {
-  choices?: Array<{ message?: { content?: string | null } }>;
+  choices?: Array<{
+    message?: { content?: string | null; tool_calls?: ToolCall[] };
+  }>;
   error?: { message?: string };
 }
+
+type ChatMessage =
+  | { role: "system" | "user" | "assistant"; content: string }
+  | {
+      role: "assistant";
+      content: null;
+      tool_calls: Array<{
+        id: string;
+        type: "function";
+        function: { name: "search_slack"; arguments: string };
+      }>;
+    }
+  | { role: "tool"; tool_call_id: string; content: string };
 
 /**
  * Opens a streamed Answer to a conversation.
@@ -70,37 +130,93 @@ interface CompletionFrame {
  * prompt — and the bill — carries. A follow-up is rewritten into a standalone
  * query before retrieval; that rewrite never changes the turns shown to the
  * member or sent as the Answer's conversation.
+ *
+ * `mentionSearch`, when passed, lets the model call Slack once before it
+ * answers. The web path omits it, so that request stays a single streamed
+ * completion with no tools. See ADR-0006.
  */
-export async function openAnswerStream(turns: Turn[], signal: AbortSignal): Promise<AnswerStream> {
+export async function openAnswerStream(
+  turns: Turn[],
+  signal: AbortSignal,
+  mentionSearch?: MentionSearch,
+): Promise<AnswerStream> {
   const chunks = await similarChunks(turns, signal);
   const citations = citationsFrom(chunks);
-  const response = await fetch(CHAT_MODEL_URL, {
-    method: "POST",
-    signal,
-    headers: {
-      Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: env.OPENROUTER_MODEL,
-      messages: [{ role: "system", content: systemPrompt(chunks) }, ...turns],
-      stream: true,
-      // Reasoning is on by default for this model, so it has to be switched off
-      // explicitly for an Answer to start arriving instantly. `enabled: false`
-      // rather than `effort: "none"`: the model lists efforts max/high/low only,
-      // and would reject "none".
-      reasoning: { enabled: false },
-    }),
-  });
+  const prompt = systemPrompt(chunks, mentionSearch !== undefined);
+  if (!mentionSearch) {
+    return {
+      grounded: chunks.length > 0,
+      citations,
+      slackHits: [],
+      deltas: readDeltas(await streamCompletion(prompt, turns, signal)),
+    };
+  }
+  return openMentionStream(turns, signal, prompt, chunks.length > 0, citations, mentionSearch);
+}
 
-  if (!response.ok || !response.body) {
-    throw new Error(`OpenRouter returned ${response.status}: ${await response.text()}`);
+/**
+ * One Slack search, then an Answer. A missing or failed search still answers
+ * from the wiki, and the model cannot call the tool again.
+ */
+async function openMentionStream(
+  turns: Turn[],
+  signal: AbortSignal,
+  prompt: string,
+  wikiGrounded: boolean,
+  citations: Citation[],
+  mentionSearch: MentionSearch,
+): Promise<AnswerStream> {
+  const decision = await complete(prompt, turns, signal, true);
+  const call = searchCall(decision);
+  if (call === "none") {
+    return {
+      grounded: wikiGrounded,
+      citations,
+      slackHits: [],
+      deltas: once(decision.choices?.[0]?.message?.content?.trim() ?? ""),
+    };
+  }
+  if (call === "unusable") {
+    return wikiStream(turns, signal, prompt, wikiGrounded, citations);
   }
 
+  let hits: SlackHit[];
+  try {
+    hits = await mentionSearch.search(call.query);
+  } catch (error) {
+    if (signal.aborted) {
+      throw error;
+    }
+    captureUnexpectedError(error);
+    return wikiStream(turns, signal, prompt, wikiGrounded, citations);
+  }
+
+  const messages: ChatMessage[] = [
+    { role: "system", content: prompt },
+    ...turns,
+    { role: "assistant", content: null, tool_calls: [call.toolCall] },
+    { role: "tool", tool_call_id: call.toolCall.id, content: formatHits(hits) },
+  ];
   return {
-    grounded: chunks.length > 0,
+    grounded: wikiGrounded || hits.length > 0,
     citations,
-    deltas: readDeltas(response.body),
+    slackHits: hits,
+    deltas: readDeltas(await streamCompletionMessages(messages, signal)),
+  };
+}
+
+async function wikiStream(
+  turns: Turn[],
+  signal: AbortSignal,
+  prompt: string,
+  wikiGrounded: boolean,
+  citations: Citation[],
+): Promise<AnswerStream> {
+  return {
+    grounded: wikiGrounded,
+    citations,
+    slackHits: [],
+    deltas: readDeltas(await streamCompletion(prompt, turns, signal)),
   };
 }
 
@@ -180,11 +296,156 @@ async function rewriteAsStandalone(turns: Turn[], signal: AbortSignal): Promise<
   return body.choices?.[0]?.message?.content?.trim() ?? "";
 }
 
-function systemPrompt(chunks: RetrievedChunk[]): string {
-  if (chunks.length === 0) {
-    return UNGROUNDED;
+function systemPrompt(chunks: RetrievedChunk[], slackSearch = false): string {
+  const base =
+    chunks.length === 0
+      ? UNGROUNDED
+      : `${GROUNDED}\n\n${chunks.map((item) => item.body).join("\n\n")}`;
+  if (!slackSearch) {
+    return base;
   }
-  return `${GROUNDED}\n\n${chunks.map((item) => item.body).join("\n\n")}`;
+  return `${base}\n\n${SLACK_TOOL_GUIDANCE}`;
+}
+
+async function streamCompletion(
+  prompt: string,
+  turns: Turn[],
+  signal: AbortSignal,
+): Promise<ReadableStream<Uint8Array>> {
+  return streamCompletionMessages([{ role: "system", content: prompt }, ...turns], signal);
+}
+
+async function streamCompletionMessages(
+  messages: ChatMessage[],
+  signal: AbortSignal,
+): Promise<ReadableStream<Uint8Array>> {
+  const response = await postChat(messages, signal, true);
+  if (!response.body) {
+    throw new Error(`OpenRouter returned ${response.status} with no body`);
+  }
+  return response.body;
+}
+
+/** A non-streaming completion. `withTool` offers search_slack and nothing else. */
+async function complete(
+  prompt: string,
+  turns: Turn[],
+  signal: AbortSignal,
+  withTool: boolean,
+): Promise<CompletionFrame> {
+  const response = await postChat(
+    [{ role: "system", content: prompt }, ...turns],
+    signal,
+    false,
+    withTool,
+  );
+  const body = (await response.json()) as CompletionFrame;
+  if (body.error) {
+    throw new Error(`OpenRouter failed: ${body.error.message ?? "unknown reason"}`);
+  }
+  return body;
+}
+
+async function postChat(
+  messages: ChatMessage[],
+  signal: AbortSignal,
+  stream: boolean,
+  withTool = false,
+): Promise<Response> {
+  const response = await fetch(CHAT_MODEL_URL, {
+    method: "POST",
+    signal,
+    headers: {
+      Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: env.OPENROUTER_MODEL,
+      messages,
+      ...(withTool ? { tools: [SEARCH_SLACK_TOOL] } : {}),
+      stream,
+      // Reasoning is on by default for this model, so it has to be switched off
+      // explicitly for an Answer to start arriving instantly. `enabled: false`
+      // rather than `effort: "none"`: the model lists efforts max/high/low only,
+      // and would reject "none".
+      reasoning: { enabled: false },
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`OpenRouter returned ${response.status}: ${await response.text()}`);
+  }
+  return response;
+}
+
+type SearchCall =
+  | "none"
+  | "unusable"
+  | {
+      query: string;
+      toolCall: {
+        id: string;
+        type: "function";
+        function: { name: "search_slack"; arguments: string };
+      };
+    };
+
+/** The one search_slack call in a decision, if the model made a usable one. */
+function searchCall(frame: CompletionFrame): SearchCall {
+  const calls = frame.choices?.[0]?.message?.tool_calls;
+  if (!calls || calls.length === 0) {
+    return "none";
+  }
+  const call = calls.find((item) => item.function?.name === "search_slack");
+  const id = call?.id;
+  const args = call?.function?.arguments;
+  if (!id || !args) {
+    return "unusable";
+  }
+  try {
+    const parsed = JSON.parse(args) as { query?: unknown };
+    const query = typeof parsed.query === "string" ? parsed.query.trim() : "";
+    if (!query) {
+      return "unusable";
+    }
+    return {
+      query,
+      toolCall: {
+        id,
+        type: "function",
+        function: { name: "search_slack", arguments: args },
+      },
+    };
+  } catch {
+    return "unusable";
+  }
+}
+
+function formatHits(hits: SlackHit[]): string {
+  if (hits.length === 0) {
+    return "No matching public Slack messages.";
+  }
+  return hits.map(formatHit).join("\n\n");
+}
+
+function formatHit(hit: SlackHit): string {
+  const where = [hit.channelName ? `#${hit.channelName}` : "", hit.authorName]
+    .filter(Boolean)
+    .join(" - ");
+  const lines = [where, hit.permalink, hit.content];
+  if (hit.before.length > 0) {
+    lines.push(`Before: ${hit.before.join(" ")}`);
+  }
+  if (hit.after.length > 0) {
+    lines.push(`After: ${hit.after.join(" ")}`);
+  }
+  return lines.filter(Boolean).join("\n");
+}
+
+async function* once(text: string): AsyncGenerator<string> {
+  if (text) {
+    yield text;
+  }
 }
 
 /** Yields the text of each delta frame, skipping keep-alives and framing. */

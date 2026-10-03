@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { app } from "../src/app.ts";
 import { env } from "../src/env.ts";
+import { ANSWER_STREAM_PATH } from "../src/routes/chatRoute.ts";
 import { SLACK_EVENTS_PATH, clearSeenSlackEvents } from "../src/routes/slackRoute.ts";
 import type { Turn } from "../src/services/answerService.ts";
 import {
@@ -17,6 +18,7 @@ import {
   formatSlackAnswer,
 } from "../src/services/slackAsk.ts";
 import { embedByText } from "./embedderState.ts";
+import { aliceSession, seedAlice } from "./fixtures.ts";
 import { testDb } from "./harness.ts";
 
 const OPENROUTER_ORIGIN = "https://openrouter.ai";
@@ -24,8 +26,9 @@ const SLACK_API_PREFIX = "https://slack.com/api/";
 
 interface ChatModelRequest {
   model: string;
-  messages: Turn[];
+  messages: Array<Turn | { role: string; content?: string | null }>;
   stream: boolean;
+  tools?: unknown;
 }
 
 interface SlackCall {
@@ -38,7 +41,12 @@ let slackCalls: SlackCall[] = [];
 
 type FetchArgs = Parameters<typeof fetch>;
 
-function fakeNetwork(opts: { answer: () => Response | Promise<Response> }) {
+function fakeNetwork(opts: {
+  answer: () => Response | Promise<Response>;
+  /** Non-streaming completion used when the mention path offers search_slack. */
+  decide?: () => unknown;
+  slackSearch?: () => unknown;
+}) {
   const realFetch = globalThis.fetch;
   vi.stubGlobal("fetch", (input: FetchArgs[0], init?: FetchArgs[1]) => {
     const url = requestedUrl(input);
@@ -46,6 +54,9 @@ function fakeNetwork(opts: { answer: () => Response | Promise<Response> }) {
       const body = JSON.parse(init?.body as string) as ChatModelRequest;
       sent.push(body);
       if (!body.stream) {
+        if (opts.decide && body.tools) {
+          return Promise.resolve(Response.json(opts.decide()));
+        }
         return Promise.resolve(
           Response.json({
             choices: [{ message: { content: "standalone query" } }],
@@ -55,10 +66,16 @@ function fakeNetwork(opts: { answer: () => Response | Promise<Response> }) {
       return Promise.resolve(opts.answer());
     }
     if (url.startsWith(SLACK_API_PREFIX)) {
+      const method = url.slice(SLACK_API_PREFIX.length);
       slackCalls.push({
-        method: url.slice(SLACK_API_PREFIX.length),
+        method,
         body: JSON.parse(init?.body as string) as Record<string, unknown>,
       });
+      if (method === "assistant.search.context") {
+        return Promise.resolve(
+          Response.json(opts.slackSearch?.() ?? { ok: false, error: "not_stubbed" }),
+        );
+      }
       return Promise.resolve(Response.json({ ok: true }));
     }
     return realFetch(input, init);
@@ -109,7 +126,7 @@ function signedHeaders(rawBody: string, timestamp = String(Math.floor(Date.now()
   };
 }
 
-function mention(opts?: { text?: string; eventId?: string }) {
+function mention(opts?: { text?: string; eventId?: string; actionToken?: string }) {
   return {
     type: "event_callback" as const,
     event_id: opts?.eventId ?? "Ev123",
@@ -118,7 +135,27 @@ function mention(opts?: { text?: string; eventId?: string }) {
       text: opts?.text ?? "<@U0BOT> How does ingest work?",
       ts: "1234567890.123456",
       channel: "C0LAB",
+      ...(opts?.actionToken ? { action_token: opts.actionToken } : {}),
     },
+  };
+}
+
+function toolDecision(query: string) {
+  return {
+    choices: [
+      {
+        message: {
+          content: null,
+          tool_calls: [
+            {
+              id: "call-1",
+              type: "function",
+              function: { name: "search_slack", arguments: JSON.stringify({ query }) },
+            },
+          ],
+        },
+      },
+    ],
   };
 }
 
@@ -340,6 +377,98 @@ describe(`POST ${SLACK_EVENTS_PATH}`, () => {
     expect(slackCalls.filter((call) => call.method === "chat.postMessage")).toHaveLength(1);
   });
 
+  it("appends Slack permalinks when the model searches, and marks the Answer grounded", async () => {
+    fakeNetwork({
+      decide: () => toolDecision("what people said about ingest"),
+      slackSearch: () => ({
+        ok: true,
+        results: {
+          messages: [
+            {
+              author_name: "Ada",
+              channel_name: "labrador",
+              content: "Ingest runs nightly.",
+              permalink: "https://lab.slack.com/archives/C1/p1",
+              context_messages: {
+                before: [{ text: "When does ingest run?" }],
+                after: [{ text: "Thanks." }],
+              },
+            },
+          ],
+        },
+      }),
+      answer: () => deltaStream(["Ingest runs nightly."]),
+    });
+
+    const res = await postEvent(mention({ actionToken: "act-1" }));
+
+    expect(res.status).toBe(200);
+    await waitForDelivery();
+    expect(postedText()).toBe(
+      "Ingest runs nightly.\n\nSlack\n<https://lab.slack.com/archives/C1/p1|#labrador>",
+    );
+    expect(outcomeReaction()).toBe(GROUNDED_REACTION);
+    expect(slackCalls.find((call) => call.method === "assistant.search.context")?.body).toEqual({
+      query: "what people said about ingest",
+      action_token: "act-1",
+      channel_types: ["public_channel"],
+      content_types: ["messages"],
+      include_context_messages: true,
+      limit: 8,
+    });
+    const decision = sent.find((call) => !call.stream);
+    expect(decision?.tools).toBeDefined();
+    const final = sent.find((call) => call.stream);
+    expect(final?.tools).toBeUndefined();
+    expect(
+      final?.messages.some(
+        (message) => message.role === "tool" && message.content?.includes("When does ingest run?"),
+      ),
+    ).toBe(true);
+  });
+
+  it("still posts the wiki Answer when the mention has no action token", async () => {
+    fakeNetwork({ answer: () => deltaStream(["From the wiki."]) });
+
+    const res = await postEvent(mention());
+
+    expect(res.status).toBe(200);
+    await waitForDelivery();
+    expect(postedText()).toBe("From the wiki.");
+    expect(slackCalls.some((call) => call.method === "assistant.search.context")).toBe(false);
+    expect(sent.every((call) => call.tools === undefined)).toBe(true);
+  });
+
+  it("still posts the wiki Answer when Slack search fails", async () => {
+    fakeNetwork({
+      decide: () => toolDecision("what people said about ingest"),
+      slackSearch: () => ({ ok: false, error: "ratelimited" }),
+      answer: () => deltaStream(["From the wiki."]),
+    });
+
+    const res = await postEvent(mention({ actionToken: "act-1" }));
+
+    expect(res.status).toBe(200);
+    await waitForDelivery();
+    expect(postedText()).toBe("From the wiki.");
+    expect(outcomeReaction()).toBe(UNGROUNDED_REACTION);
+    expect(slackCalls.some((call) => call.method === "assistant.search.context")).toBe(true);
+  });
+
+  it("does not offer Slack search on the web", async () => {
+    await seedAlice();
+    fakeNetwork({ answer: () => deltaStream(["web"]) });
+
+    const res = await request(app)
+      .post(ANSWER_STREAM_PATH)
+      .set(await aliceSession())
+      .send({ turns: [{ role: "user", content: "What is ingest?" }] });
+
+    expect(res.status).toBe(200);
+    expect(sent.every((call) => call.tools === undefined)).toBe(true);
+    expect(sent.some((call) => call.stream)).toBe(true);
+  });
+
   it("ignores events that are not app_mention", async () => {
     fakeNetwork({ answer: () => deltaStream(["never reached"]) });
 
@@ -380,6 +509,33 @@ describe("formatSlackAnswer", () => {
         },
       ]),
     ).toBe("See the constitution.\n\n<https://scottylabs-labrador.github.io/goldador/|Goldador>");
+  });
+
+  it("puts Slack permalinks in a footer after Page Citations", () => {
+    expect(
+      formatSlackAnswer(
+        "Ingest runs nightly.",
+        [
+          {
+            title: "Ingest",
+            url: "https://wiki.example.com/Ingest",
+            sourceTitle: "Labrador Wiki",
+          },
+        ],
+        [
+          {
+            authorName: "Ada",
+            channelName: "labrador",
+            content: "Ingest runs nightly.",
+            permalink: "https://lab.slack.com/archives/C1/p1",
+            before: [],
+            after: [],
+          },
+        ],
+      ),
+    ).toBe(
+      "Ingest runs nightly.\n\n<https://wiki.example.com/Ingest|Labrador Wiki: Ingest>\n\nSlack\n<https://lab.slack.com/archives/C1/p1|#labrador>",
+    );
   });
 
   it("leaves markdown links inside code alone", () => {

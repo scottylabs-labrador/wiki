@@ -27,6 +27,7 @@ const eventCallbackSchema = z.object({
     ts: z.string().optional(),
     channel: z.string().optional(),
     thread_ts: z.string().optional(),
+    action_token: z.string().optional(),
   }),
 });
 
@@ -89,6 +90,7 @@ export function receiveSlackEvent(req: Request, res: Response): void {
       text: event.text,
       ts: event.ts,
       ...(event.thread_ts ? { thread_ts: event.thread_ts } : {}),
+      ...(event.action_token ? { action_token: event.action_token } : {}),
     }).catch(captureUnexpectedError);
   } catch (error) {
     captureUnexpectedError(error);

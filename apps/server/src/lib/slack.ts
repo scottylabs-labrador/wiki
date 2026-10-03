@@ -12,7 +12,22 @@ export interface SlackMention {
   text: string;
   ts: string;
   thread_ts?: string;
+  /** Present on an app_mention. Required for the bot to call Real-time Search. */
+  action_token?: string;
 }
+
+/** One public Slack message returned to the model and to the thread footer. */
+export interface SlackHit {
+  authorName: string;
+  channelName: string;
+  content: string;
+  permalink: string;
+  before: string[];
+  after: string[];
+}
+
+/** Matches the wiki retrieval cap. Slack allows at most 20. */
+const SLACK_SEARCH_LIMIT = 8;
 
 /**
  * Checks the HMAC Slack attaches to every Events API request.
@@ -76,13 +91,94 @@ export async function postThreadReply(mention: SlackMention, text: string): Prom
   });
 }
 
-async function slackMethod(method: string, body: Record<string, unknown>): Promise<void> {
+/**
+ * Searches public channels for one mention.
+ *
+ * The bot token can call this only with the mention's action token, and only
+ * for public channels. See ADR-0006.
+ */
+export async function searchPublicMessages(
+  actionToken: string,
+  query: string,
+  signal?: AbortSignal,
+): Promise<SlackHit[]> {
+  const result = (await slackMethod(
+    "assistant.search.context",
+    {
+      query,
+      action_token: actionToken,
+      channel_types: ["public_channel"],
+      content_types: ["messages"],
+      include_context_messages: true,
+      limit: SLACK_SEARCH_LIMIT,
+    },
+    signal,
+  )) as SlackSearchResponse;
+
+  return (result.results?.messages ?? []).slice(0, SLACK_SEARCH_LIMIT).flatMap(slackHitFrom);
+}
+
+interface SlackSearchResponse {
+  results?: {
+    messages?: SlackSearchMessage[];
+  };
+}
+
+interface SlackSearchMessage {
+  author_name?: string;
+  channel_name?: string;
+  content?: string;
+  permalink?: string;
+  context_messages?: {
+    before?: SlackContextMessage[];
+    after?: SlackContextMessage[];
+  };
+}
+
+interface SlackContextMessage {
+  text?: string;
+}
+
+function slackHitFrom(message: SlackSearchMessage): SlackHit[] {
+  const content = message.content?.trim();
+  const permalink = message.permalink?.trim();
+  if (!content || !permalink) {
+    return [];
+  }
+  return [
+    {
+      authorName: message.author_name?.trim() ?? "",
+      channelName: message.channel_name?.trim() ?? "",
+      content,
+      permalink,
+      before: contextLines(message.context_messages?.before),
+      after: contextLines(message.context_messages?.after),
+    },
+  ];
+}
+
+function contextLines(messages: SlackContextMessage[] | undefined): string[] {
+  if (!messages) {
+    return [];
+  }
+  return messages.flatMap((message) => {
+    const text = message.text?.trim();
+    return text ? [text] : [];
+  });
+}
+
+async function slackMethod(
+  method: string,
+  body: Record<string, unknown>,
+  signal?: AbortSignal,
+): Promise<unknown> {
   if (!env.SLACK_BOT_TOKEN) {
     throw new Error("SLACK_BOT_TOKEN is required to call Slack");
   }
 
   const response = await fetch(`${SLACK_API}/${method}`, {
     method: "POST",
+    ...(signal ? { signal } : {}),
     headers: {
       Authorization: `Bearer ${env.SLACK_BOT_TOKEN}`,
       "Content-Type": "application/json",
@@ -93,4 +189,5 @@ async function slackMethod(method: string, body: Record<string, unknown>): Promi
   if (!result.ok) {
     throw new Error(`Slack ${method} failed: ${result.error ?? response.status}`);
   }
+  return result;
 }

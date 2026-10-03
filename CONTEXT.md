@@ -1,6 +1,6 @@
 # Wiki Agent
 
-A chat agent that answers questions about ScottyLabs Labrador using the committee's published documentation as its only source of truth.
+A chat agent that answers questions about ScottyLabs Labrador using the committee's published documentation as its only source of truth. A Slack mention may also consult public Slack messages, which are not a Source and which an Ask on the web cannot consult.
 
 ## Language
 
@@ -29,7 +29,7 @@ A question posed to the agent that should produce one Answer.
 _Avoid_: Query, prompt, message, request
 
 **Answer**:
-One model response to one question, together with the Citations that support it.
+One model response to one question, together with the Citations that support it. On a Slack mention, permalinks of public messages the agent consulted may follow the Citations. Those permalinks are not Citations.
 _Avoid_: Reply, completion, message
 
 **Citation**:

@@ -1,7 +1,14 @@
 import { citationLabel } from "@wiki/common";
 import type { Citation } from "@wiki/corpus";
 
-import { addReaction, postThreadReply, removeReaction, type SlackMention } from "../lib/slack.ts";
+import {
+  addReaction,
+  postThreadReply,
+  removeReaction,
+  searchPublicMessages,
+  type SlackHit,
+  type SlackMention,
+} from "../lib/slack.ts";
 import { captureUnexpectedError } from "../middlewares/errorHandler.ts";
 import { openAnswerStream } from "./answerService.ts";
 
@@ -17,8 +24,9 @@ export const CANNOT_PRODUCE_TEXT = "The Wiki Agent could not produce an Answer."
  *
  * Does not go through `POST /chat/answers`: that adapter requires a Member
  * session and spends the hourly quota. Slack Asks are open; see ADR-0004.
- * The stream is drained here because Slack gets one complete thread reply,
- * not token deltas.
+ * When the mention carries an action token, the model may search public Slack
+ * once; see ADR-0006. The stream is drained here because Slack gets one
+ * complete thread reply, not token deltas.
  */
 export async function deliverSlackAsk(mention: SlackMention): Promise<void> {
   try {
@@ -35,8 +43,11 @@ export async function deliverSlackAsk(mention: SlackMention): Promise<void> {
       return;
     }
 
-    const answer = await collectAnswer(question);
-    await postThreadReply(mention, formatSlackAnswer(answer.text, answer.citations));
+    const answer = await collectAnswer(question, mention);
+    await postThreadReply(
+      mention,
+      formatSlackAnswer(answer.text, answer.citations, answer.slackHits),
+    );
     try {
       await flipReaction(mention, answer.grounded ? GROUNDED_REACTION : UNGROUNDED_REACTION);
     } catch (error) {
@@ -61,15 +72,37 @@ export function questionFromMention(text: string): string {
     .trim();
 }
 
-export function formatSlackAnswer(text: string, citations: Citation[]): string {
+export function formatSlackAnswer(
+  text: string,
+  citations: Citation[],
+  slackHits: SlackHit[] = [],
+): string {
   const body = markdownLinksToSlack(text);
-  if (citations.length === 0) {
+  const footers = [citationFooter(citations), slackFooter(slackHits)].filter(
+    (footer) => footer.length > 0,
+  );
+  if (footers.length === 0) {
     return body;
   }
-  const links = citations
-    .map((citation) => `<${citation.url}|${citationLabel(citation)}>`)
-    .join("\n");
-  return `${body}\n\n${links}`;
+  return `${body}\n\n${footers.join("\n\n")}`;
+}
+
+function citationFooter(citations: Citation[]): string {
+  return citations.map((citation) => `<${citation.url}|${citationLabel(citation)}>`).join("\n");
+}
+
+/** Permalinks of messages the tool returned. Not Citations: a Slack message is not a Page. */
+function slackFooter(hits: SlackHit[]): string {
+  const links = hits.map((hit) => `<${hit.permalink}|${slackLabel(hit)}>`).join("\n");
+  if (!links) {
+    return "";
+  }
+  return `Slack\n${links}`;
+}
+
+function slackLabel(hit: SlackHit): string {
+  const name = hit.channelName.replace(/[|>]/g, "").trim();
+  return name ? `#${name}` : "Slack";
 }
 
 /**
@@ -98,18 +131,32 @@ async function flipReaction(mention: SlackMention, name: string): Promise<void> 
   await addReaction(mention, name);
 }
 
-async function collectAnswer(question: string): Promise<{
+async function collectAnswer(
+  question: string,
+  mention: SlackMention,
+): Promise<{
   text: string;
   citations: Citation[];
+  slackHits: SlackHit[];
   grounded: boolean;
 }> {
+  const signal = AbortSignal.timeout(60_000);
+  const actionToken = mention.action_token;
   const stream = await openAnswerStream(
     [{ role: "user", content: question }],
-    AbortSignal.timeout(60_000),
+    signal,
+    actionToken
+      ? { search: (query) => searchPublicMessages(actionToken, query, signal) }
+      : undefined,
   );
   let text = "";
   for await (const delta of stream.deltas) {
     text += delta;
   }
-  return { text, citations: stream.citations, grounded: stream.grounded };
+  return {
+    text,
+    citations: stream.citations,
+    slackHits: stream.slackHits,
+    grounded: stream.grounded,
+  };
 }
